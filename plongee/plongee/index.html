@@ -1,0 +1,1919 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Carnet de plongée Bonaire</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Plongée"><meta name="theme-color" content="#08161d"><script src="supabase.js"></script><script src="cloud.js"></script><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: carte marine à gauche (ou en haut sur téléphone), carnet de plongées à droite. Repères = pierres jaunes des sites de Bonaire. */
+:root{
+  --sea:#bfe0ea; --sea-deep:#8cc5d6; --land:#e9dfc4; --land-line:#b9a77c; --salt:#f3d9de;
+  --bg:#f4f8f9; --surface:#ffffff; --fg:#13303a; --muted:#5a7480; --line:#d5e3e8;
+  --stone:#f2c418; --stone-ink:#4a3b00;
+  --done:#0d7a72; --plan:#e0457b; --plan-soft:#fde3ec; --done-soft:#d8f1ee;
+  --amber:#b56a00; --red:#c4302b;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --sea:#0d2a38; --sea-deep:#123a4c; --land:#2f3a33; --land-line:#53614f; --salt:#4a3540;
+  --bg:#08161d; --surface:#0f222b; --fg:#e3f0f3; --muted:#8ea8b2; --line:#1f3a46;
+  --stone:#f2c418; --stone-ink:#3a2e00;
+  --done:#3cc4b6; --plan:#ff6f9e; --plan-soft:#3d1a28; --done-soft:#0f3633; --amber:#f0a83a; --red:#ff6b6b; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --sea:#0d2a38; --sea-deep:#123a4c; --land:#2f3a33; --land-line:#53614f; --salt:#4a3540;
+  --bg:#08161d; --surface:#0f222b; --fg:#e3f0f3; --muted:#8ea8b2; --line:#1f3a46;
+  --stone:#f2c418; --stone-ink:#3a2e00;
+  --done:#3cc4b6; --plan:#ff6f9e; --plan-soft:#3d1a28; --done-soft:#0f3633; --amber:#f0a83a; --red:#ff6b6b; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:16px 32px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:8px 16px}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(26px,5vw,38px);letter-spacing:-.02em;margin:0;line-height:1.05;text-wrap:balance}
+h1 small{display:block;font-family:var(--f-mono);font-weight:500;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.sync.on i{background:var(--done)}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.mapbox{position:relative;background:var(--sea);border-radius:14px;overflow:hidden;height:min(78vh,720px);min-height:420px;border:1px solid var(--line);touch-action:none}
+@media (max-width:860px){.mapbox{height:64vh}}
+#map{width:100%;height:100%;display:block;cursor:grab;user-select:none;-webkit-user-select:none}
+#map.drag{cursor:grabbing}
+.ctrls{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+.ctrls button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:700 18px/1 var(--f-body);cursor:pointer}
+.legend{position:absolute;left:10px;bottom:10px;background:color-mix(in srgb,var(--surface) 88%,transparent);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;font-size:12px}
+.legend span{display:flex;align-items:center;gap:8px}
+.lg{width:14px;height:10px;border-radius:3px;border:2px solid var(--stone-ink);background:var(--stone)}
+.lg.d{background:var(--done);border-color:var(--done)}
+.lg.p{background:var(--stone);border-color:var(--plan);box-shadow:0 0 0 2px var(--plan-soft)}
+.compass{position:absolute;left:12px;top:10px;font:500 11px var(--f-mono);color:var(--muted);letter-spacing:.1em}
+.scale{position:absolute;right:10px;bottom:12px;font:500 11px var(--f-mono);color:var(--muted);display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.scale b{display:block;height:4px;border:1.5px solid var(--muted);border-top:none}
+
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--f-display);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.stat span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.site{display:flex;flex-direction:column;gap:10px}
+.site h2{font-family:var(--f-display);font-size:22px;font-weight:700;margin:0;line-height:1.1}
+.site .zone{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.site p{margin:0;color:var(--muted);font-size:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:700 14px var(--f-body);border-radius:10px;padding:9px 14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn.pri{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn.danger{color:var(--plan);border-color:var(--plan)}
+.btn:focus-visible,.chip:focus-visible,.ctrls button:focus-visible,.item:focus-visible{outline:3px solid var(--plan);outline-offset:2px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:700 13px var(--f-body);padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.listhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.listhead h3{margin:0;font-family:var(--f-display);font-size:18px}
+.list{display:flex;flex-direction:column;margin-top:10px}
+.group{font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 0 6px}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;color:inherit;font:inherit;width:100%}
+.item:hover{background:color-mix(in srgb,var(--sea) 30%,transparent)}
+.dot{width:12px;height:12px;border-radius:50%}
+.dot.faite{background:var(--done)} .dot.prevue{background:var(--plan)}
+.item .t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .s{font-size:13px;color:var(--muted)}
+.item .m{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.empty{padding:18px 4px 6px;color:var(--muted);font-size:14px}
+.empty strong{color:var(--fg)}
+
+.overlay{position:fixed;inset:0;background:rgba(5,20,28,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px;z-index:10}
+@media (min-width:640px){.overlay{align-items:center}}
+.sheet{background:var(--surface);color:var(--fg);border-radius:16px;padding:18px;width:min(520px,100%);max-height:calc(100% - 16px);overflow:auto;display:flex;flex-direction:column;gap:12px;border:1px solid var(--line)}
+.sheet h3{margin:0;font-family:var(--f-display);font-size:20px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.f input,.f select,.f textarea{font:15px var(--f-body);padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
+.f textarea{min-height:70px;resize:vertical}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{font:700 14px var(--f-body);padding:9px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"].faite{background:var(--done);color:#fff}
+.seg button[aria-pressed="true"].prevue{background:var(--plan);color:#fff}
+.err{color:var(--plan);font-size:13px;min-height:1em;margin:0}
+.foot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+svg text{font-family:var(--f-body)}
+@media (prefers-reduced-motion:no-preference){ .mk{transition:transform .15s} }
+
+.pl *{box-sizing:border-box}
+.pl body{background:var(--abyss);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:0 40px}
+.pl .wrap{max-width:1180px;margin:0 auto}
+.pl button,.pl input,.pl select,.pl textarea{font:inherit;color:inherit}
+.pl :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pl .num,.pl .tile .v,.pl td,.pl th{font-variant-numeric:tabular-nums}
+.pl .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--abyss);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding-block:12px;margin-bottom:18px}
+.pl .plan-grid{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.pl .plan-grid{grid-template-columns:minmax(0,1fr)}}
+.pl .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.pl .stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.pl .lbl{font-family:var(--f-display);font-weight:600;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0}
+.pl fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.pl fieldset+fieldset{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.pl legend{padding:0;margin-bottom:10px}
+.pl .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px}
+.pl .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pl .field label{font-size:.82rem;color:var(--muted)}
+.pl input[type=number],.pl input[type=date],.pl input[type=time],.pl input[type=text],.pl select,.pl textarea{background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+.pl textarea{min-height:64px;resize:vertical}
+.pl .slider{display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:center}
+.pl .slider .big{display:flex;align-items:baseline;gap:4px;justify-content:flex-end}
+.pl .slider .big input{font-family:var(--f-display);font-weight:700;font-size:1.5rem;padding:2px 6px;text-align:right;width:62px}
+.pl .slider .big span{color:var(--muted);font-size:.85rem}
+.pl input[type=range]{width:100%;accent-color:var(--accent)}
+.pl .levels{display:flex;flex-direction:column;gap:8px}
+.pl .lvl{display:grid;grid-template-columns:24px 58px minmax(0,1fr) minmax(0,1fr) 30px;gap:6px 8px;align-items:center}
+.pl .lvl .n{font-family:var(--f-display);font-weight:700;font-size:1.15rem;color:var(--accent);text-align:center}
+.pl .lvl .from{font-family:var(--f-display);font-weight:600;font-size:1rem;color:var(--muted);white-space:nowrap;text-align:right}
+.pl .lvl .big{display:flex;align-items:baseline;gap:4px;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:2px 8px;min-width:0}
+.pl .lvl .big input{border:0;background:none;padding:2px 0;font-family:var(--f-display);font-weight:700;font-size:1.35rem;width:100%;min-width:0;text-align:right}
+.pl .lvl .big span{color:var(--muted);font-size:.85rem}
+.pl .lvl .rm{border:1px solid var(--line);background:none;border-radius:7px;height:30px;cursor:pointer;color:var(--muted);font-size:1.1rem;line-height:1}
+.pl .lvl .sp{grid-column:3/5;font-size:.78rem;color:var(--muted);margin-top:-2px}
+.pl .lvl .sp.bad{color:var(--crit);font-weight:600}
+.pl .lvl .sp.warn{color:var(--warn)}
+.pl .lvl-head{display:grid;grid-template-columns:24px 58px minmax(0,1fr) minmax(0,1fr) 30px;gap:8px;font-size:.75rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.pl .lvl-head span:nth-child(3),.pl .lvl-head span:nth-child(4){text-align:center}
+.pl .lvl .rm:disabled{visibility:hidden}
+.pl .desat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+@media (max-width:480px){.pl .desat{grid-template-columns:minmax(0,1fr)}}
+.pl .desat .k{font-family:var(--f-display);font-weight:600;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.pl .desat .v{font-family:var(--f-display);font-weight:700;font-size:2rem;line-height:1.05}
+.pl .desat .v small{font-size:.95rem;color:var(--muted);font-weight:600;margin-left:3px}
+.pl .desat .w{font-size:.88rem}
+.pl .chips{display:flex;flex-wrap:wrap;gap:6px}
+.pl .chip{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:4px 11px;cursor:pointer;font-family:var(--f-display);font-weight:600;letter-spacing:.04em;font-size:.95rem}
+.pl .chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.pl .gasinfo{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.85rem;color:var(--muted)}
+.pl .gasinfo b{color:var(--ink);font-family:var(--f-display);font-size:1rem;font-weight:600}
+.pl .params{border-top:1px solid var(--line);margin-top:14px;padding-top:4px}
+.pl .params>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 0;min-width:0}
+.pl .params>summary::-webkit-details-marker{display:none}
+.pl .params .ptitle{font-family:var(--f-mono);font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg);flex:none}
+.pl .params .psum{flex:1 1 auto;min-width:0;font-size:.85rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .params .chev{flex:none;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);transition:transform .15s}
+.pl .params[open] .chev{transform:rotate(-135deg)}
+.pl .params[open]>summary{margin-bottom:6px}
+.pl .params>summary:focus-visible{outline:3px solid var(--plan);outline-offset:2px;border-radius:6px}
+.pl .params .pbody>fieldset:first-child{border-top:0;padding-top:0;margin-top:0}
+.pl .status{display:flex;flex-direction:column;gap:6px}
+.pl .pill{display:flex;align-items:center;gap:10px;border-radius:8px;padding:9px 12px;font-weight:600;border:1px solid transparent}
+.pl .pill::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor;flex:none}
+.pl .pill.ok{background:var(--ok-soft);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.pl .pill.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.pl .pill.crit{background:var(--crit-soft);color:var(--crit);border-color:color-mix(in srgb,var(--crit) 35%,transparent)}
+.pl .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+@media (max-width:520px){.pl .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pl .tile{background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.pl .tile .k{font-family:var(--f-display);font-weight:600;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.pl .tile .v{font-family:var(--f-display);font-weight:700;font-size:2.3rem;line-height:1;letter-spacing:.01em}
+.pl .tile .v small{font-size:.95rem;font-weight:600;color:var(--muted);margin-left:3px}
+.pl .tile .h{font-size:.8rem;color:var(--muted)}
+.pl .tile.warn .v{color:var(--warn)}
+.pl .tile.crit .v{color:var(--crit)}
+.pl .tile.ok .v{color:var(--ok)}
+.pl .svgbox{width:100%;overflow-x:auto}
+.pl .svgbox svg{display:block;width:100%;height:auto;min-width:480px}
+.pl .hdl{cursor:grab;touch-action:none;outline:none}
+.pl .hdl:active{cursor:grabbing}
+.pl .hdl .vis{fill:var(--panel);stroke:var(--accent);stroke-width:2.5}
+.pl .hdl:focus-visible .vis,.pl .hdl.on .vis{fill:var(--accent);stroke:var(--ink)}
+.pl .hdl .lab{font-size:11px;font-weight:700;fill:var(--accent);pointer-events:none}
+.pl .chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.pl .plegend{font-size:.8rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+.pl .plegend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.pl .tbl{width:100%;border-collapse:collapse;font-size:.92rem}
+.pl .tbl th{text-align:left;font-family:var(--f-display);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:.78rem;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+.pl .tbl td{padding:7px 8px;border-bottom:1px solid var(--line)}
+.pl .tbl tr:last-child td{border-bottom:0}
+.pl .tbl .r{text-align:right}
+.pl .tbl tr.stop td{color:var(--warn);font-weight:600}
+.pl .tbl tr.safety td{color:var(--accent)}
+.pl .tblwrap{overflow-x:auto}
+.pl .note{font-size:.85rem;color:var(--muted)}
+.pl .note b{color:var(--ink)}
+.pl .btn{border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600}
+.pl .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pl .btn.danger{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,transparent)}
+.pl .btn.sm{padding:4px 10px;font-size:.85rem}
+.pl .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pl .ndl td.mod{color:var(--muted);opacity:.55}
+.pl .ndl td.v{font-family:var(--f-display);font-weight:700;font-size:1.15rem}
+.pl .ndl td.low{color:var(--warn)}
+.pl .ndl tr.hit td{background:var(--accent-soft)}
+.pl .ndl td:first-child{font-family:var(--f-display);font-weight:700;font-size:1.1rem}
+.pl .ndl-mix{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px}
+.pl .ndl-mix label{font-weight:700}
+.pl .ndl-mix .big{display:inline-flex;align-items:baseline;gap:4px;background:var(--panel-2);border:1px solid var(--accent);border-radius:8px;padding:2px 10px}
+.pl .ndl-mix .big input{border:0;background:none;width:3.2ch;padding:2px 0;font-family:var(--f-display);font-weight:700;font-size:1.35rem;text-align:right;font-variant-numeric:tabular-nums}
+.pl .ndl-mix .big span{color:var(--muted);font-size:.85rem}
+.pl .ndl th.mine,.pl .ndl td.mine{background:var(--accent-soft)}
+.pl .ndl th.mine{color:var(--accent)}
+.pl .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+@media (max-width:620px){.pl .stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pl .dives{display:flex;flex-direction:column;gap:8px}
+.pl .dive{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+@media (max-width:560px){.pl .dive{grid-template-columns:56px minmax(0,1fr)}}
+.pl .dive.up .no{color:var(--accent)}
+.pl .empty{border:1px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--muted)}
+.pl .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--abyss);padding:8px 14px;border-radius:8px;font-weight:600;font-size:.9rem;z-index:20}
+.pl footer{margin-top:28px;border-top:1px solid var(--line);padding-top:14px;font-size:.82rem;color:var(--muted);max-width:75ch}
+.pl .hint{font-size:.8rem;color:var(--muted)}
+
+.pl .pl-foot{grid-column:1/-1;max-width:80ch;margin:4px 0 0}
+
+
+/* Météo styles */
+.wx{display:flex;flex-direction:column;gap:16px}
+.wx h3{margin:0;font-family:var(--f-display);font-size:19px}
+.wx .k{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.wx-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.wx-meta{font-size:12px;color:var(--muted)}
+.wx-state{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.wx-state:empty{display:none}
+.wx-state.err{color:var(--plan)}
+.wx-now{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px 24px;align-items:center}
+@media (max-width:700px){.wx-now{grid-template-columns:minmax(0,1fr)}}
+.wx-now-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.wx-now-temp{display:flex;align-items:center;gap:10px}
+.wx-now-temp b{font-family:var(--f-display);font-size:64px;line-height:1;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.wx-now-ph{font-size:16px;font-weight:700}
+.wx-now-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 14px;margin:0}
+@media (max-width:420px){.wx-now-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.wx-now-grid div{min-width:0}
+.wx-now-grid dt{font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.wx-now-grid dd{margin:2px 0 0;font-family:var(--f-display);font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.wx-now .wx-state{grid-column:1/-1}
+.wx-ico{display:inline-flex;width:30px;height:30px;flex:none}
+.wx-ico.big{width:58px;height:58px}
+.wx-ico svg{width:100%;height:100%}
+.wx-hours-wrap{overflow-x:auto;margin:0 -4px;padding:0 4px 4px}
+.wx-hours{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(64px,1fr);gap:6px}
+.wx-h{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:10px;background:var(--bg);font-variant-numeric:tabular-nums;min-width:0}
+.wx-h .t{font:500 11px var(--f-mono);color:var(--muted)}
+.wx-h .v{font-family:var(--f-display);font-size:19px;font-weight:700}
+.wx-h .p{font-size:12px;font-weight:700;color:var(--done)}
+.wx-h .p.hi{color:var(--plan)}
+.wx-h .w{font-size:11px;color:var(--muted);white-space:nowrap}
+.wx-h .st{font-size:11px;color:var(--amber);font-weight:700}
+.wx-h.night{background:color-mix(in srgb,var(--fg) 6%,var(--bg))}
+.wx-days{display:flex;flex-direction:column}
+.wx-d{display:grid;grid-template-columns:62px 34px minmax(0,1fr) 92px 70px;gap:10px;align-items:center;padding:9px 2px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.wx-d:first-child{border-top:0}
+.wx-d .dn{font-weight:700;line-height:1.1}
+.wx-d .dn small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.wx-d .ph{font-size:14px;min-width:0}
+.wx-d .ph small{display:block;font-size:12px;color:var(--muted)}
+.wx-d .tp{display:flex;gap:6px;align-items:center;justify-content:flex-end;font-family:var(--f-display);font-size:17px;font-weight:700}
+.wx-d .tp i{font-style:normal;color:var(--muted);font-weight:500}
+.wx-d .rn{text-align:right;font-size:13px}
+.wx-d .rn b{color:var(--done)} .wx-d .rn b.hi{color:var(--plan)}
+.wx-d .rn small{display:block;color:var(--muted);font-size:11.5px}
+@media (max-width:560px){.wx-d{grid-template-columns:52px 30px minmax(0,1fr) 78px}.wx-d .rn{grid-column:3/5;text-align:left;display:flex;gap:10px}.wx-d .rn small{display:inline}}
+.wlink{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;padding:10px 6px;border-top:1px solid var(--line);color:inherit;text-decoration:none;border-radius:8px}
+.wlink:hover{background:color-mix(in srgb,var(--sea) 30%,transparent)}
+.wlink:focus-visible{outline:3px solid var(--plan);outline-offset:1px}
+.wlink .wt{font-weight:700}
+.wlink .wd{grid-column:1;font-size:13px;color:var(--muted)}
+.wlink .wa{grid-column:2;grid-row:1/3;align-self:center;font-size:18px;color:var(--muted)}
+.wx-note{margin:4px 0 8px;color:var(--muted);font-size:13px}
+.wx-next h3{margin-bottom:6px}
+.wx-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 2px;border-top:1px solid var(--line)}
+.wx-row .t{font-weight:700}
+.wx-row .s{font-size:13px;color:var(--muted)}
+.wx-row .f{grid-column:3;grid-row:1/3;text-align:right;font-size:13px;font-variant-numeric:tabular-nums}
+.wx-row .f b{font-family:var(--f-display);font-size:17px}
+.wx-row .wx-ico{grid-row:1/3}
+
+/* paquebots */
+.pt-row{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:9px 2px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.pt-row:first-child{border-top:0}
+.pt-row .d{font-weight:700;line-height:1.15}
+.pt-row .d small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.pt-row .n{font-weight:700;min-width:0}
+.pt-row .n small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.pt-row.today{background:color-mix(in srgb,var(--done) 10%,transparent);border-radius:8px}
+.pt-chip{font:700 12px var(--f-body);border-radius:999px;padding:3px 9px;white-space:nowrap;border:1px solid currentColor}
+.pt-chip.lo{color:var(--done)} .pt-chip.mid{color:var(--amber)} .pt-chip.hi{color:var(--plan)}
+.wx-row .cr{display:block;font-size:12px;color:var(--amber);margin-top:2px}
+/* radar */
+.wx-rsum{margin:0 0 10px;font-size:16px;font-weight:700}
+.wx-rchart svg{display:block;width:100%;height:auto}
+.wx-rleg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-top:6px}
+.wx-rleg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+.wx-rleg .l1{background:color-mix(in srgb,var(--done) 55%,transparent)} .wx-rleg .l2{background:var(--done)} .wx-rleg .l3{background:var(--amber)} .wx-rleg .l4{background:var(--plan)}
+.wx-radar .btn{text-decoration:none;display:inline-block}
+/* Planificateur : jetons dérivés de la palette du carnet */
+.pl{--abyss:var(--bg);--panel:var(--surface);--panel-2:var(--bg);--ink:var(--fg);
+  --accent:var(--done);--accent-ink:var(--bg);--accent-soft:color-mix(in srgb,var(--done) 15%,transparent);
+  --ok:var(--done);--warn:var(--amber);--crit:var(--red);
+  --ok-soft:color-mix(in srgb,var(--done) 13%,transparent);--warn-soft:color-mix(in srgb,var(--amber) 14%,transparent);--crit-soft:color-mix(in srgb,var(--red) 13%,transparent);
+  --r:14px;font-family:var(--f-body);line-height:1.45}
+.pl .tile .v,.pl .desat .v,.pl .lvl .big input,.pl .slider .big input,.pl .ndl td.v,.pl .ndl td:first-child{font-family:var(--f-display);font-variant-numeric:tabular-nums}
+.pl .lbl,.pl .tile .k,.pl .desat .k,.pl .tbl th{font-family:var(--f-mono);font-weight:500;letter-spacing:.1em}
+.pl .tile .v{font-size:2rem}
+.views{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.views button{border:0;background:none;padding:7px 14px;border-radius:999px;cursor:pointer;font:700 14px var(--f-body);color:var(--muted)}
+.views button[aria-selected="true"]{background:var(--fg);color:var(--bg)}
+.views button:focus-visible{outline:3px solid var(--plan);outline-offset:2px}
+.hdr-right{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-weight:700;font-size:.9rem;z-index:30}
+.item .si{color:var(--done);font-weight:700}
+
+/* Parcours PADI */
+.padi{display:flex;flex-direction:column;gap:16px}
+.padi h3{margin:0;font-family:var(--f-display);font-size:19px}
+.padi .k{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.pd-top{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.pd-top{grid-template-columns:minmax(0,1fr)}}
+.pd-who{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.pd-goal{display:flex;flex-direction:column;gap:12px}
+.pd-meter{display:flex;flex-direction:column;gap:6px}
+.pd-meter .lab{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-variant-numeric:tabular-nums}
+.pd-meter .lab b{font-family:var(--f-display);font-size:18px}
+.pd-bar{height:10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
+.pd-bar i{display:block;height:100%;background:var(--done);border-radius:999px}
+.pd-bar i.part{background:var(--amber)}
+.pd-dives{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end}
+@media (max-width:480px){.pd-dives{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pd-dives .v{font-family:var(--f-display);font-size:28px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.pd-dives input{font:15px var(--f-body);padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
+.pd-list{display:flex;flex-direction:column}
+.pd-item{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 2px;border-top:1px solid var(--line)}
+.pd-item:first-child{border-top:0}
+.pd-item input[type=checkbox]{width:20px;height:20px;accent-color:var(--done);margin:0;cursor:pointer}
+.pd-item label{font-weight:700;cursor:pointer;min-width:0}
+.pd-item .d{grid-column:2;font-size:13px;color:var(--muted)}
+.pd-item .when{grid-column:3;grid-row:1/3;display:flex;align-items:center;gap:6px}
+.pd-item .when input.num{max-width:120px;font-family:var(--f-mono);font-size:12px}
+.pd-item .when input{font:13px var(--f-body);padding:5px 7px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--fg);max-width:150px}
+.pd-item.ok label{color:var(--done)}
+.pd-item .tag{font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--amber);margin-left:6px;white-space:nowrap}
+.pd-auto{font:500 11px var(--f-mono);letter-spacing:.06em;color:var(--done);white-space:nowrap}
+.pd-note{font-size:13px;color:var(--muted);margin:8px 0 0;max-width:75ch}
+.pd-msg{font-size:13px;color:var(--plan);margin:0}
+.pd-msg:empty{display:none}
+@media (max-width:520px){.pd-item{grid-template-columns:28px minmax(0,1fr)}.pd-item .when{grid-column:2;grid-row:auto}}
+</style>
+
+
+<style>
+.acct-btn{padding:6px 12px;font-size:13px}
+.hdr-right{flex-wrap:wrap;min-width:0;max-width:100%}
+header,.wrap{min-width:0;max-width:100%}
+.views{max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.views::-webkit-scrollbar{display:none}
+.views button{white-space:nowrap;flex:none}
+html,body{overflow-x:hidden}
+#auth{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px 16px;overflow:auto}
+#auth[hidden],#acct[hidden]{display:none!important}
+.auth-card{width:min(400px,100%);display:flex;flex-direction:column;gap:14px}
+.auth-card img{width:96px;height:96px;border-radius:22px;align-self:center}
+.auth-card h1{text-align:center;font-size:30px}
+.auth-card h2{margin:0;font-family:var(--f-display);font-size:20px;text-align:center}
+.auth-card .btn{width:100%;padding:12px}
+.linkbtn{background:none;border:0;color:var(--muted);font:600 14px var(--f-body);cursor:pointer;padding:6px;text-decoration:underline}
+.auth-msg{font-size:14px;color:var(--plan);min-height:1em;margin:0;text-align:center}
+.acct-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.acct-row span{min-width:0;overflow-wrap:anywhere;font-weight:700}
+.acct-row small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.acct-note{color:var(--muted);font-size:14px;margin:6px 0}
+.invite{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+</style>
+<div id="auth" hidden>
+  <form class="auth-card" id="authForm" autocomplete="on">
+    <img src="apple-touch-icon.png" alt="">
+    <h1>Carnet de plongée</h1>
+    <h2 id="authTitle">Se connecter</h2>
+    <div class="f" id="authEmailF"><label for="authEmail">E-mail</label><input id="authEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="off" required></div>
+    <div class="f" id="authPwF"><label for="authPw">Mot de passe</label><input id="authPw" type="password" autocomplete="current-password" minlength="6"></div>
+    <button class="btn pri" id="authGo" type="submit">Se connecter</button>
+    <p class="auth-msg" id="authErr" role="status"></p>
+    <button class="linkbtn" id="authAlt" type="button">Créer un compte</button>
+    <button class="linkbtn" id="authForgot" type="button">Mot de passe oublié ?</button>
+  </form>
+</div>
+<div class="overlay" id="acct" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="acctT">
+    <h3 id="acctT">Compte</h3>
+    <div><strong id="acctEmail"></strong><div class="acct-note" id="acctRole"></div></div>
+    <div id="acctShare">
+      <h3 style="font-size:17px;margin-bottom:4px">Partager le carnet</h3>
+      <div id="acctList"></div>
+      <form class="invite" id="inviteForm" style="margin-top:10px">
+        <div class="f"><label for="inviteEmail">Inviter par e-mail</label><input id="inviteEmail" type="email" autocapitalize="off" placeholder="adresse@exemple.fr" required></div>
+        <div class="f"><label for="inviteRole">Droits</label><select id="inviteRole"><option value="editeur">Peut modifier</option><option value="lecteur">Lecture seule</option></select></div>
+        <button class="btn pri" type="submit" style="grid-column:1/-1">Inviter</button>
+      </form>
+      <p class="acct-note" id="acctMsg" role="status"></p>
+    </div>
+    <div class="foot"><button class="btn danger" id="acctOut" type="button">Se déconnecter</button><button class="btn" id="acctClose" type="button">Fermer</button></div>
+  </div>
+</div>
+<div class="wrap">
+  <header>
+    <h1><small>Pays-Bas caribéens · 12°N 68°O</small>Carnet de plongée Bonaire</h1>
+    <div class="hdr-right">
+      <nav class="views" role="tablist" aria-label="Vues">
+        <button role="tab" data-v="map" aria-selected="true">Carte &amp; carnet</button>
+        <button role="tab" data-v="plan" aria-selected="false">Planifier</button>
+        <button role="tab" data-v="ndl" aria-selected="false">Table NDL</button>
+        <button role="tab" data-v="meteo" aria-selected="false">Météo</button>
+        <button role="tab" data-v="padi" aria-selected="false">Parcours PADI</button>
+      </nav>
+      <div class="sync" id="sync"><i></i><span>Connexion…</span></div>
+      <button class="btn acct-btn" id="acctBtn" type="button" aria-label="Compte et partage">Compte</button>
+    </div>
+  </header>
+
+  <section id="v-map" class="grid">
+    <div class="mapbox" id="mapbox">
+      <svg id="map" role="img" aria-label="Carte de Bonaire et de ses sites de plongée"></svg>
+      <div class="compass">N ↑</div>
+      <div class="ctrls">
+        <button id="zin" aria-label="Zoomer">+</button>
+        <button id="zout" aria-label="Dézoomer">−</button>
+        <button id="zreset" aria-label="Vue d’ensemble" style="font-size:13px">⤢</button>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="lg"></i>Site</span>
+        <span><i class="lg p"></i>Prévue</span>
+        <span><i class="lg d"></i>Réalisée</span>
+      </div>
+      <div class="scale" id="scale"><span>2 km</span><b id="scalebar"></b></div>
+    </div>
+
+    <div class="panel">
+      <div class="card stats" id="stats"></div>
+
+      <div class="card site" id="sitecard">
+        <span class="zone">Sélection</span>
+        <h2>Touchez une pierre jaune</h2>
+        <p>Chaque repère correspond à un site de plongée du bord, comme les pierres peintes le long de la route côtière. Choisissez-en un pour voir ses plongées ou en ajouter une.</p>
+      </div>
+
+      <div class="card">
+        <div class="listhead">
+          <h3>Plongées</h3>
+          <button class="btn pri" id="addbtn">+ Ajouter</button>
+        </div>
+        <div class="chips" role="group" aria-label="Filtrer" style="margin-top:10px">
+          <button class="chip" data-f="all" aria-pressed="true">Toutes</button>
+          <button class="chip" data-f="prevue" aria-pressed="false">À venir</button>
+          <button class="chip" data-f="faite" aria-pressed="false">Réalisées</button>
+        </div>
+        <div class="list" id="list"></div>
+      </div>
+    </div>
+  </section>
+<section id="sec-meteo" class="wx" hidden>
+  <div class="card wx-now" id="wxNow">
+    <div class="wx-now-main">
+      <span class="k">Kralendijk · maintenant</span>
+      <div class="wx-now-temp"><span id="nwIcon" class="wx-ico big" aria-hidden="true"></span><b id="nwTemp">--°</b></div>
+      <span class="wx-now-ph" id="nwPhrase">Chargement de la météo…</span>
+    </div>
+    <dl class="wx-now-grid" id="nwGrid"></dl>
+    <p class="wx-state" id="nwState"></p>
+  </div>
+
+  <div class="card wx-radar">
+    <div class="wx-head"><h3>Pluie · 2 prochaines heures</h3><span class="wx-meta">Modèle Open-Meteo · pas de 15 min</span></div>
+    <p class="wx-rsum" id="rdSum">Chargement…</p>
+    <div class="wx-rchart" id="rdChart" role="img" aria-label="Intensité de pluie prévue minute par minute"></div>
+    <div class="wx-rleg" aria-hidden="true"><span><i class="l1"></i>Faible</span><span><i class="l2"></i>Modérée</span><span><i class="l3"></i>Forte</span><span><i class="l4"></i>Orage</span></div>
+    <div class="actions" style="margin-top:10px"><a class="btn" href="https://www.accuweather.com/fr/bq/kralendijk/12309/weather-radar/12309" target="_blank" rel="noopener">Ouvrir la carte radar animée ↗</a></div>
+    <p class="wx-state" id="rdState"></p>
+  </div>
+
+  <div class="card">
+    <div class="wx-head"><h3>Heure par heure</h3><span class="wx-meta" id="hrMeta"></span></div>
+    <div class="wx-hours-wrap"><div class="wx-hours" id="hrList"></div></div>
+    <p class="wx-state" id="hrState"></p>
+  </div>
+
+  <div class="card">
+    <div class="wx-head"><h3>10 jours</h3><span class="wx-meta" id="dyMeta"></span></div>
+    <div class="wx-days" id="dyList"></div>
+    <p class="wx-state" id="dyState"></p>
+  </div>
+
+  <div class="card wx-next">
+    <h3>Météo de vos prochaines plongées</h3>
+    <div id="wxNext"></div>
+  </div>
+
+  <div class="card wx-port">
+    <div class="wx-head"><h3>Paquebots en escale</h3><span class="wx-meta" id="ptMeta"></span></div>
+    <div id="ptList"></div>
+    <p class="wx-note" id="ptNote"></p>
+  </div>
+
+  <div class="card wx-salt">
+    <h3>Salt Pier : navire à quai ?</h3>
+    <p class="wx-note">Aucun calendrier public des navires de sel. Quand un navire est amarré ou en manœuvre, on ne plonge pas sous la jetée. Vérifiez juste avant de partir :</p>
+    <a class="wlink" href="https://www.marinetraffic.com/en/ais/home/centerx:-68.285/centery:12.084/zoom:15" target="_blank" rel="noopener"><span class="wt">MarineTraffic · Salt Pier en direct</span><span class="wd">Ouvre l'application MarineTraffic si elle est installée, centrée sur la jetée</span><span class="wa" aria-hidden="true">↗</span></a>
+    <p class="wx-note" style="margin-top:8px">Sur place, un navire à quai se voit depuis la route. Plan B proche : Windsock, ou les sites entre Salt Pier et Angel City.</p>
+  </div>
+
+  <div class="card wx-links">
+    <h3>Sur AccuWeather</h3>
+    <p class="wx-note">Radar, satellite et MinuteCast s'ouvrent sur le site AccuWeather, déjà centrés sur Kralendijk.</p>
+    <a class="wlink" href="https://www.accuweather.com/fr/bq/kralendijk/12309/weather-radar/12309" target="_blank" rel="noopener"><span class="wt">Radar &amp; satellite</span><span class="wd">Cellules orageuses et nuages, animation</span><span class="wa" aria-hidden="true">↗</span></a>
+    <a class="wlink" href="https://www.accuweather.com/fr/bq/kralendijk/12309/minute-weather-forecast/12309" target="_blank" rel="noopener"><span class="wt">MinuteCast</span><span class="wd">Pluie minute par minute sur les 2 prochaines heures</span><span class="wa" aria-hidden="true">↗</span></a>
+    <a class="wlink" href="https://www.accuweather.com/fr/bq/kralendijk/12309/daily-weather-forecast/12309" target="_blank" rel="noopener"><span class="wt">15 jours et plus</span><span class="wd">Prévisions quotidiennes au-delà de 10 jours</span><span class="wa" aria-hidden="true">↗</span></a>
+  </div>
+</section>
+<section id="sec-plan" class="pl plan-grid" hidden>
+  <form class="card" id="planForm" autocomplete="off" onsubmit="return false">
+    <fieldset>
+      <legend class="lbl">Plongée</legend>
+      <div class="row">
+        <div class="field"><label for="pDate">Date</label><input type="date" id="pDate"></div>
+        <div class="field"><label for="pTime">Heure</label><input type="time" id="pTime"></div>
+      </div>
+      <div class="field"><label for="pSite">Site</label><select id="pSite"><option value="">— Choisir un site —</option></select></div>
+    </fieldset>
+    <fieldset>
+      <legend class="lbl">Profil</legend>
+      <div class="lvl-head" aria-hidden="true"><span></span><span>De</span><span>Vers</span><span>Durée</span><span></span></div>
+      <div class="levels" id="levels"></div>
+      <div class="actions"><button class="btn sm" type="button" id="addLevel">+ Ajouter un segment</button></div>
+      <span class="hint">Jusqu'à 10 segments. Chaque segment part de la profondeur précédente : même profondeur = plat, sinon descente ou remontée sur la durée indiquée (0 min = vitesse par défaut). La remontée finale et les paliers éventuels sont ajoutés automatiquement.</span>
+    </fieldset>
+    <details class="params" id="params">
+      <summary><span class="ptitle">Paramètres</span><span class="psum" id="paramSum"></span><span class="chev" aria-hidden="true"></span></summary>
+      <div class="pbody">
+    <fieldset>
+      <legend class="lbl">Gaz</legend>
+      <div class="chips" id="gasChips"></div>
+      <div class="row">
+        <div class="field"><label for="pO2">O₂ %</label><input type="number" id="pO2" min="8" max="100" step="1"></div>
+        <div class="field"><label for="pHe">He %</label><input type="number" id="pHe" min="0" max="90" step="1"></div>
+        <div class="field"><label for="pPpo2">PO₂ max</label>
+          <select id="pPpo2"><option value="1.2">1,2 bar</option><option value="1.3">1,3 bar</option><option value="1.4" selected>1,4 bar</option><option value="1.5">1,5 bar</option><option value="1.6">1,6 bar</option></select></div>
+      </div>
+      <div class="gasinfo" id="gasInfo"></div>
+    </fieldset>
+    <fieldset>
+      <legend class="lbl">Algorithme</legend>
+      <div class="row">
+        <div class="field"><label for="pGfLo">GF bas %</label><input type="number" id="pGfLo" min="10" max="100" step="5"></div>
+        <div class="field"><label for="pGfHi">GF haut %</label><input type="number" id="pGfHi" min="10" max="100" step="5"></div>
+      </div>
+      <div class="chips" id="gfChips"></div>
+      <div class="row">
+        <div class="field"><label for="pWater">Eau</label><select id="pWater"><option value="salt">Mer (salée)</option><option value="fresh">Lac (douce)</option></select></div>
+        <div class="field"><label for="pAlt">Altitude (m)</label><input type="number" id="pAlt" min="0" max="4500" step="50"></div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend class="lbl">Consommation</legend>
+      <div class="row">
+        <div class="field"><label for="pSac">Conso surface</label><input type="number" id="pSac" min="0.1" max="40" step="0.1" inputmode="decimal"></div>
+        <div class="field"><label for="pSacU">Unité</label><select id="pSacU"><option value="bar">bar/min (Shearwater)</option><option value="l">l/min</option></select></div>
+        <div class="field"><label for="pTank">Bouteille (l)</label><input type="number" id="pTank" min="3" max="30" step="1"></div>
+      </div>
+      <span class="hint" id="sacHint"></span>
+      <div class="row">
+        <div class="field"><label for="pFill">Pression départ (bar)</label><input type="number" id="pFill" min="50" max="300" step="10"></div>
+        <div class="field"><label for="pReserve">Réserve (bar)</label><input type="number" id="pReserve" min="0" max="100" step="10"></div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend class="lbl">Vitesses et paliers</legend>
+        <div class="row">
+          <div class="field"><label for="pDesc">Descente (m/min)</label><input type="number" id="pDesc" min="5" max="30" step="1"></div>
+          <div class="field"><label for="pAsc">Remontée (m/min)</label><input type="number" id="pAsc" min="3" max="18" step="1"></div>
+          <div class="field"><label for="pLast">Dernier palier</label><select id="pLast"><option value="3">3 m</option><option value="6">6 m</option></select></div>
+        </div>
+    </fieldset>
+      </div>
+    </details>
+  </form>
+
+  <div class="stack" style="min-width:0">
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="card">
+      <div class="chart-head"><p class="lbl">Profil de plongée</p>
+        <div class="plegend"><span><i style="background:var(--accent)"></i>Profondeur</span><span><i style="background:var(--warn)"></i>Plafond (GF)</span><span><i style="background:var(--crit)"></i>MOD</span></div></div>
+      <div class="svgbox" id="profile"></div>
+      <p class="hint" style="margin:8px 0 0">Faites glisser les points : horizontalement pour la durée du segment, verticalement pour la profondeur. Au clavier : flèches après sélection d'un point.</p>
+    </div>
+    <div class="card">
+      <p class="lbl" style="margin-bottom:8px">Déroulé</p>
+      <div class="tblwrap"><table class="tbl" id="runTbl"></table></div>
+      <p class="note" id="gasNote" style="margin:10px 0 0"></p>
+    </div>
+    <div class="card">
+      <div class="chart-head"><p class="lbl">Saturation des 16 compartiments à la sortie</p>
+        <div class="plegend"><span>% de la valeur M en surface</span><span><i style="background:var(--crit)"></i>GF haut</span></div></div>
+      <div class="svgbox" id="tissues"></div>
+      <p class="note" id="residNote" style="margin:10px 0 0"></p>
+    </div>
+    <div class="card">
+      <div class="chart-head"><p class="lbl">Élimination de l'azote après la sortie</p>
+        <div class="plegend"><span><i style="background:var(--accent)"></i>Compartiment le plus lent encore chargé</span><span><i style="background:var(--warn)"></i>Sursaturation max</span></div></div>
+      <div class="desat" id="desat"></div>
+      <div class="svgbox" id="desatChart"></div>
+      <p class="note" id="desatNote" style="margin:10px 0 0"></p>
+    </div>
+    <div class="actions">
+      <button class="btn primary" type="button" id="addFromPlan">Ajouter au carnet</button>
+      <button class="btn" type="button" id="updFromPlan" hidden>Mettre à jour la plongée chargée</button>
+      <button class="btn" type="button" id="unloadPlan" hidden>Nouvelle plongée</button>
+      <span class="hint" id="addHint"></span>
+    </div>
+  </div>
+  <p class="note pl-foot">Outil de planification et d'apprentissage, basé sur le modèle Bühlmann ZHL-16C avec gradient factors (paliers tous les 3 m, monogaz). Les plongées passées du carnet sont modélisées en profil carré. Il ne remplace ni votre ordinateur de plongée, ni votre formation, ni les procédures de votre centre : plongez toujours selon l'ordinateur et prévoyez une marge.</p>
+</section>
+
+<section id="sec-padi" class="padi" hidden>
+  <div class="pd-top">
+    <div class="card pd-goal">
+      <div class="pd-who">
+        <div><span class="k">Objectif</span><h3>PADI Divemaster</h3></div>
+        <div class="chips" role="group" aria-label="Plongeur" id="pdWho">
+          <button class="chip" data-p="chris" aria-pressed="true">Chris</button>
+          <button class="chip" data-p="vero" aria-pressed="false">Véro</button>
+        </div>
+      </div>
+      <div class="pd-meter"><div class="lab"><span>Prérequis Divemaster</span><b id="pdReqN">0/0</b></div><div class="pd-bar"><i id="pdReqBar" style="width:0"></i></div></div>
+      <div class="pd-meter"><div class="lab"><span>Spécialités cochées</span><b id="pdSpeN">0</b></div><div class="pd-bar"><i id="pdSpeBar" class="part" style="width:0"></i></div></div>
+      <p class="pd-msg" id="pdMsg"></p>
+    </div>
+    <div class="card">
+      <span class="k">Plongées enregistrées</span>
+      <div class="pd-dives" style="margin-top:8px">
+        <div class="f"><label for="pdBefore">Avant ce carnet</label><input type="number" id="pdBefore" min="0" max="5000" step="1" inputmode="numeric"></div>
+        <div><span class="k">Ce carnet</span><div class="v" id="pdCarnet">0</div></div>
+        <div><span class="k">Total</span><div class="v" id="pdTotal">0</div></div>
+      </div>
+      <p class="pd-note">Indiquez le nombre de plongées de votre carnet papier ou de Shearwater Cloud avant Bonaire. Les plongées réalisées de ce carnet s'ajoutent automatiquement.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Prérequis Divemaster</h3>
+    <p class="pd-note" style="margin:4px 0 6px">Ce que PADI demande pour suivre puis valider le cours Divemaster.</p>
+    <div class="pd-list" id="pdReq"></div>
+  </div>
+
+  <div class="card">
+    <h3>Spécialités PADI</h3>
+    <p class="pd-note" style="margin:4px 0 6px">Aucune spécialité n'est obligatoire pour Divemaster. Cinq spécialités, avec Rescue et 50 plongées, donnent le Master Scuba Diver. Celles marquées « conseillée » préparent bien aux ateliers Divemaster.</p>
+    <div class="pd-list" id="pdSpe"></div>
+  </div>
+  <p class="pd-note">Conditions PADI indicatives, à confirmer avec votre centre ou sur padi.com avant de vous inscrire.</p>
+</section>
+<section id="sec-ndl" class="pl" hidden>
+  <div class="stack">
+    <div class="card">
+      <p class="lbl" style="margin-bottom:4px">Limites sans palier (minutes)</p>
+      <p class="note" id="ndlCtx" style="margin:0 0 12px"></p>
+      <div class="ndl-mix"><label for="ndlO2">Mon nitrox analysé</label>
+        <span class="big"><span>EAN</span><input type="number" id="ndlO2" min="21" max="40" step="1" inputmode="numeric"><span>% O₂</span></span>
+        <span class="hint" id="ndlO2Hint"></span></div>
+      <div class="tblwrap"><table class="tbl ndl" id="ndlTbl"></table></div>
+      <p class="note" style="margin:12px 0 0">« — » : profondeur au-delà de la MOD pour la PO₂ max choisie. En orange : moins de 10 min. Les valeurs tiennent compte de la descente et des plongées précédentes du carnet (48 h).</p>
+    </div>
+  </div>
+</section>
+
+
+</div>
+
+<div class="overlay" id="ov" hidden>
+  <form class="sheet" id="form" novalidate>
+    <h3 id="ftitle">Nouvelle plongée</h3>
+    <div class="seg" role="group" aria-label="Statut">
+      <button type="button" class="prevue" data-s="prevue" aria-pressed="true">À venir</button>
+      <button type="button" class="faite" data-s="faite" aria-pressed="false">Réalisée</button>
+    </div>
+    <div class="f"><label for="fsite">Site</label><select id="fsite"></select></div>
+    <div class="three">
+      <div class="f"><label for="fdate">Date</label><input id="fdate" type="date"></div>
+      <div class="f"><label for="fheure">Heure d'immersion</label><input id="fheure" type="time"></div>
+      <div class="f"><label for="fgaz">Gaz</label><select id="fgaz"><option>Air</option><option>Nitrox 28</option><option>Nitrox 32</option><option>Nitrox 36</option><option>Nitrox 40</option></select></div>
+    </div>
+    <div class="three">
+      <div class="f"><label for="fprof">Prof. max (m)</label><input id="fprof" type="number" inputmode="decimal" min="0" max="60" step="0.1"></div>
+      <div class="f"><label for="fduree">Durée (min)</label><input id="fduree" type="number" inputmode="numeric" min="0" max="240"></div>
+      <div class="f"><label for="ftemp">Eau (°C)</label><input id="ftemp" type="number" inputmode="decimal" min="15" max="35" step="0.5"></div>
+    </div>
+    <div class="two">
+      <div class="f"><label for="flchris">Lestage Chris (kg)</label><input id="flchris" type="number" inputmode="decimal" min="0" max="20" step="0.5"></div>
+      <div class="f"><label for="flvero">Lestage Véro (kg)</label><input id="flvero" type="number" inputmode="decimal" min="0" max="20" step="0.5"></div>
+    </div>
+    <div class="f"><label for="fnotes">Notes</label><textarea id="fnotes" placeholder="Tortues, hippocampe, courant, binôme…"></textarea></div>
+    <p class="err" id="ferr"></p>
+    <div class="foot">
+      <div class="row"><button type="button" class="btn danger" id="fdel" hidden>Supprimer</button><button type="button" class="btn" id="fsim">Simuler</button></div>
+      <div class="row" style="margin-left:auto">
+        <button type="button" class="btn" id="fcancel">Annuler</button>
+        <button type="submit" class="btn pri">Enregistrer</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+(() => {
+// ---------- Géographie (lat, lon) approximative ----------
+const BONAIRE = [
+ [12.318,-68.392],[12.305,-68.375],[12.285,-68.352],[12.262,-68.322],[12.240,-68.290],[12.215,-68.258],[12.190,-68.228],[12.165,-68.206],[12.140,-68.195],
+ [12.118,-68.203],[12.110,-68.212],[12.103,-68.226],[12.097,-68.214],[12.085,-68.212],[12.072,-68.218],[12.058,-68.224],[12.042,-68.228],[12.028,-68.236],
+ [12.026,-68.244],[12.032,-68.254],[12.045,-68.266],[12.055,-68.272],[12.072,-68.278],[12.090,-68.284],[12.110,-68.285],[12.130,-68.281],[12.150,-68.277],
+ [12.165,-68.282],[12.180,-68.290],[12.192,-68.299],[12.202,-68.311],[12.209,-68.322],[12.214,-68.332],[12.218,-68.345],[12.221,-68.354],[12.232,-68.368],
+ [12.246,-68.384],[12.258,-68.402],[12.268,-68.416],[12.278,-68.420],[12.290,-68.417],[12.298,-68.412],[12.305,-68.401],[12.314,-68.396]
+];
+const KLEIN = [[12.169,-68.318],[12.168,-68.308],[12.163,-68.301],[12.155,-68.299],[12.148,-68.304],[12.145,-68.314],[12.150,-68.323],[12.158,-68.327],[12.165,-68.325]];
+const LAC = [[12.112,-68.221],[12.106,-68.232],[12.097,-68.236],[12.088,-68.231],[12.086,-68.222],[12.095,-68.217],[12.104,-68.215]];
+const PEKEL = [[12.085,-68.270],[12.070,-68.268],[12.050,-68.258],[12.040,-68.248],[12.045,-68.238],[12.062,-68.240],[12.080,-68.252],[12.090,-68.262]];
+const GOTO = [[12.232,-68.372],[12.228,-68.362],[12.224,-68.364],[12.227,-68.374]];
+const PLACES = [["Kralendijk",12.151,-68.268],["Rincon",12.243,-68.330],["Lac Bay",12.100,-68.245],["Washington-Slagbaai",12.290,-68.383],["Pekelmeer",12.060,-68.256],["Klein Bonaire",12.157,-68.313]];
+
+// Sites de plongée (lat, lon, zone)
+const SITES = [
+ ["boka-bartol","Boka Bartól",12.3080,-68.4035,"Washington-Slagbaai"],
+ ["boka-katuna","Boka Katuna",12.3020,-68.4110,"Washington-Slagbaai"],
+ ["playa-benge","Playa Bengé",12.2965,-68.4180,"Washington-Slagbaai"],
+ ["playa-funchi","Playa Funchi",12.2905,-68.4215,"Washington-Slagbaai"],
+ ["bise-morto","Bisé Morto",12.2845,-68.4235,"Washington-Slagbaai"],
+ ["wayaka-2","Wayaká II",12.2785,-68.4240,"Washington-Slagbaai"],
+ ["boca-slagbaai","Boka Slagbaai",12.2715,-68.4210,"Washington-Slagbaai"],
+ ["playa-frans","Playa Frans",12.2600,-68.4085,"Washington-Slagbaai"],
+ ["nukove","Nukove (Doblet)",12.2470,-68.3880,"Nord"],
+ ["carels-vision","Carel’s Vision",12.2420,-68.3830,"Nord"],
+ ["tailor-made","Tailor Made",12.2375,-68.3775,"Nord"],
+ ["candyland","Candyland",12.2335,-68.3725,"Nord"],
+ ["windjammer","Windjammer (épave)",12.2285,-68.3655,"Nord"],
+ ["karpata","Karpata",12.2225,-68.3575,"Nord"],
+ ["la-dania","La Dania’s Leap",12.2198,-68.3495,"Nord"],
+ ["rappel","Rappel",12.2178,-68.3445,"Nord"],
+ ["bloodlet","Bloodlet",12.2168,-68.3410,"Nord"],
+ ["tolo","Tolo (Ol’ Blue)",12.2158,-68.3378,"Nord"],
+ ["country-garden","Country Garden",12.2150,-68.3352,"Nord"],
+ ["bon-bini","Bon Bini Na Kas",12.2142,-68.3328,"Nord"],
+ ["1000-steps","1000 Steps",12.2132,-68.3303,"Nord"],
+ ["webers-joy","Weber’s Joy (Witches Hut)",12.2110,-68.3270,"Nord"],
+ ["jeff-davis","Jeff Davis Memorial",12.2068,-68.3218,"Nord"],
+ ["kallis","Kalli’s Reef",12.2020,-68.3150,"Nord"],
+ ["oil-slick","Oil Slick Leap",12.1978,-68.3080,"Nord"],
+ ["barcadera","Barcadera",12.1945,-68.3040,"Nord"],
+ ["andrea-2","Andrea II",12.1910,-68.2998,"Kralendijk"],
+ ["andrea-1","Andrea I",12.1885,-68.2972,"Kralendijk"],
+ ["petries","Petrie’s Pillar",12.1862,-68.2960,"Kralendijk"],
+ ["small-wall","Small Wall",12.1840,-68.2947,"Kralendijk"],
+ ["coopers","Coopers Barge (épave)",12.1823,-68.2938,"Kralendijk"],
+ ["cliff","The Cliff",12.1805,-68.2930,"Kralendijk"],
+ ["la-machaca","La Machaca",12.1745,-68.2898,"Kralendijk"],
+ ["buddys","Reef Scientifico / Buddy’s Reef",12.1715,-68.2882,"Kralendijk"],
+ ["bari","Bari",12.1688,-68.2868,"Kralendijk"],
+ ["front-porch","Front Porch",12.1640,-68.2848,"Kralendijk"],
+ ["something-special","Something Special (Pali Grande)",12.1585,-68.2825,"Kralendijk"],
+ ["town-pier","Town Pier",12.1508,-68.2805,"Kralendijk"],
+ ["calabas","Calabas Reef",12.1445,-68.2830,"Kralendijk"],
+ ["18th-palm","18th Palm",12.1390,-68.2842,"Sud"],
+ ["windsock","Windsock",12.1315,-68.2852,"Sud"],
+ ["corporal-meiss","Corporal Meiss (North Belnem)",12.1285,-68.2860,"Sud"],
+ ["bachelors","Bachelor’s Beach (Fondu di Kalki)",12.1252,-68.2875,"Sud"],
+ ["chez-hines","Chez Hines",12.1228,-68.2880,"Sud"],
+ ["lighthouse-point","Lighthouse Point",12.1205,-68.2885,"Sud"],
+ ["punt-vierkant","Punt Vierkant",12.1182,-68.2888,"Sud"],
+ ["the-lake","The Lake",12.1148,-68.2892,"Sud"],
+ ["hilma-hooker","Hilma Hooker (épave)",12.1112,-68.2895,"Sud"],
+ ["angel-city","Angel City",12.1080,-68.2895,"Sud"],
+ ["alice","Alice in Wonderland",12.1050,-68.2895,"Sud"],
+ ["aquarius","Aquarius",12.1022,-68.2893,"Sud"],
+ ["larrys-lair","Larry’s Lair",12.0995,-68.2890,"Sud"],
+ ["jeannies","Jeannie’s Glory",12.0968,-68.2887,"Sud"],
+ ["salt-pier","Salt Pier",12.0855,-68.2855,"Sud"],
+ ["salt-city","Salt City",12.0805,-68.2838,"Sud"],
+ ["invisibles","Invisibles",12.0760,-68.2825,"Sud"],
+ ["toris","Tori’s Reef",12.0715,-68.2810,"Sud"],
+ ["pink-beach","Pink Beach (Kabayé)",12.0665,-68.2795,"Sud"],
+ ["white-slave","White Slave",12.0560,-68.2755,"Sud"],
+ ["wanda","Wanda",12.0522,-68.2735,"Sud"],
+ ["margate","Margate Bay",12.0482,-68.2708,"Sud"],
+ ["red-beryl","Red Beryl",12.0450,-68.2688,"Sud"],
+ ["atlantis","Atlantis",12.0420,-68.2668,"Sud"],
+ ["fish-hut","Fish Hut",12.0395,-68.2648,"Sud"],
+ ["vista-blue","Vista Blue",12.0372,-68.2628,"Sud"],
+ ["sweet-dreams","Sweet Dreams",12.0352,-68.2610,"Sud"],
+ ["soft-coral","Soft Coral Garden",12.0335,-68.2593,"Sud"],
+ ["hidden-beach","Hidden Beach",12.0318,-68.2578,"Sud"],
+ ["yellow-hut","Yellow Hut",12.0302,-68.2562,"Sud"],
+ ["chogogo","Chogogo",12.0288,-68.2546,"Sud"],
+ ["red-slave","Red Slave",12.0272,-68.2528,"Sud"],
+ ["willemstoren","Willemstoren Lighthouse",12.0225,-68.2415,"Sud"],
+ ["keepsake","Keepsake",12.1695,-68.3265,"Klein Bonaire"],
+ ["carls-hill","Carl’s Hill",12.1715,-68.3190,"Klein Bonaire"],
+ ["ebos","Ebo’s Reef",12.1712,-68.3105,"Klein Bonaire"],
+ ["no-name","No Name Beach",12.1668,-68.3030,"Klein Bonaire"],
+ ["knife","Knife",12.1590,-68.2965,"Klein Bonaire"],
+ ["jerrys-sponges","Jerry’s Sponges",12.1520,-68.2975,"Klein Bonaire"],
+ ["south-bay","South Bay",12.1425,-68.3090,"Klein Bonaire"],
+ ["hands-off","Hands Off",12.1440,-68.3200,"Klein Bonaire"],
+ ["forest","Forest",12.1600,-68.3300,"Klein Bonaire"],
+ ["lac-cai","Cai (Lac Bay)",12.0960,-68.2085,"Côte est"],
+];
+const byId = Object.fromEntries(SITES.map(s=>[s[0],{id:s[0],name:s[1],lat:s[2],lon:s[3],zone:s[4]}]));
+
+// Projection équirectangulaire
+const LON0=-68.445, LAT1=12.330, K=2000, CO=Math.cos(12.17*Math.PI/180);
+const px = (lat,lon)=>[(lon-LON0)*CO*K,(LAT1-lat)*K];
+const FULL={x:0,y:0,w:(-68.17-LON0)*CO*K,h:(LAT1-12.010)*K};
+const KM = K/111.32; // unités SVG par km (latitude)
+
+const NS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("map");
+const el=(n,a={},p=svg)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e;};
+const poly=pts=>pts.map(p=>px(...p).map(v=>v.toFixed(1)).join(",")).join(" ");
+const css=v=>`var(${v})`;
+
+const gBase=el("g");
+el("rect",{x:-400,y:-400,width:FULL.w+800,height:FULL.h+800,fill:css("--sea")},gBase);
+// bande de récif (approx. tombant)
+el("polygon",{points:poly(BONAIRE),fill:"none",stroke:css("--sea-deep"),"stroke-width":14,"stroke-linejoin":"round"},gBase);
+el("polygon",{points:poly(KLEIN),fill:"none",stroke:css("--sea-deep"),"stroke-width":14,"stroke-linejoin":"round"},gBase);
+el("polygon",{points:poly(BONAIRE),fill:css("--land"),stroke:css("--land-line"),"stroke-width":1.2,"stroke-linejoin":"round"},gBase);
+el("polygon",{points:poly(KLEIN),fill:css("--land"),stroke:css("--land-line"),"stroke-width":1.2,"stroke-linejoin":"round"},gBase);
+el("polygon",{points:poly(PEKEL),fill:css("--salt"),stroke:css("--land-line"),"stroke-width":.6},gBase);
+el("polygon",{points:poly(LAC),fill:css("--sea"),stroke:css("--land-line"),"stroke-width":.6},gBase);
+el("polygon",{points:poly(GOTO),fill:css("--salt"),stroke:css("--land-line"),"stroke-width":.6},gBase);
+const gPlaces=el("g");
+const placeEls=PLACES.map(([n,la,lo])=>{const [x,y]=px(la,lo);const t=el("text",{x,y,"text-anchor":"middle",fill:css("--muted"),"font-size":9,"font-style":"italic"},gPlaces);t.textContent=n;return t;});
+const gMk=el("g"); const gLbl=el("g",{"pointer-events":"none"});
+
+// ---------- Données ----------
+// Copie figée pour les visiteurs sans compte (mise à jour à la demande)
+const SNAPSHOT_DATE="6 oct. 2026";
+const SNAPSHOT=[];
+let dives=[]; let db=null, col=null; let local=false;
+const syncEl=document.getElementById("sync");
+let TM=new Map(), SI=new Map();
+// Heures : celles saisies, sinon supposées (10 h puis +4 h par plongée du même jour, dans l'ordre de création)
+function diveTimes(list){ const by={}, M=new Map();
+  list.forEach(d=>{ if(d.date)(by[d.date]??=[]).push(d); });
+  for(const date in by){ const L=by[date].slice().sort((a,b)=>(a.heure||'').localeCompare(b.heure||'')||String(a.id).localeCompare(String(b.id)));
+    let lastH=null; L.forEach((d,k)=>{ let time=d.heure, assumed=false;
+      if(!time){ assumed=true; let h=10+4*k; if(lastH!=null&&h<=lastH) h=lastH+3; h=Math.min(22,h); time=String(h).padStart(2,"0")+":00"; }
+      lastH=+time.slice(0,2);
+      M.set(d.id,{time,assumed,ts:new Date(date+"T"+time).getTime()}); }); }
+  return M; }
+window.BONAIRE={sites:SITES,listeners:[],dives:()=>dives,times:diveTimes,readonly:()=>readonly,
+  siteName:id=>byId[id]?.name||null,save:(id,obj)=>saveDive(id,obj),plan:null};
+function setSync(on,txt){syncEl.classList.toggle("on",on);syncEl.querySelector("span").textContent=txt;}
+const LS="bonaire-plongees";
+function loadLocal(){try{dives=JSON.parse(localStorage.getItem(LS)||"[]")}catch{dives=[]}}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(dives))}catch{}}
+let readonly=false;
+function goLocal(){local=true;readonly=true;dives=SNAPSHOT.map(d=>({...d}));setSync(false,"Lecture seule · copie du "+SNAPSHOT_DATE);
+  document.getElementById("addbtn").hidden=true; render();}
+
+(async()=>{
+  let ns=null;
+  try{ ns = window.claude && window.claude.use ? await window.claude.use("db") : null; }catch{ ns=null; }
+  if(!ns){ goLocal(); return; }
+  db=ns; col=db.collection("plongees");
+  if(ns.role==="lecteur"){ readonly=true; document.getElementById("addbtn").hidden=true; }
+  col.onSnapshot(s=>{ dives=s.docs.map(d=>({id:d.id,...d.data()})); setSync(true,"Synchronisé · partagé"); render(); },
+    ()=>{ goLocal(); });
+})();
+async function saveDive(id,obj){
+  if(local||!col){ const i=dives.findIndex(d=>d.id===id); if(i>=0)dives[i]={id,...obj}; else dives.push({id,...obj}); saveLocal(); render(); return; }
+  await col.doc(id).set(obj);
+}
+async function delDive(id){
+  if(local||!col){ dives=dives.filter(d=>d.id!==id); saveLocal(); render(); return; }
+  await col.doc(id).delete();
+}
+
+// ---------- Vue / zoom ----------
+let vb={...FULL};
+const pad=()=>{const r=svg.getBoundingClientRect();return r;};
+function fit(){ // ajuste vb au ratio du conteneur
+  const r=pad(); if(!r.width) return;
+  const ar=r.width/r.height, cx=vb.x+vb.w/2, cy=vb.y+vb.h/2;
+  if(vb.w/vb.h>ar){ vb.h=vb.w/ar; } else { vb.w=vb.h*ar; }
+  vb.x=cx-vb.w/2; vb.y=cy-vb.h/2;
+}
+function apply(){ fit(); svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`); drawMarkers(); updScale(); }
+function reset(){ const r=pad(); vb={...FULL}; if(r.width){const ar=r.width/r.height; if(FULL.w/FULL.h>ar){vb.w=FULL.w*1.04;vb.h=vb.w/ar;}else{vb.h=FULL.h*1.04;vb.w=vb.h*ar;} vb.x=FULL.w/2-vb.w/2; vb.y=FULL.h/2-vb.h/2;} apply(); }
+function zoomAt(f,cx,cy){ const nw=Math.min(Math.max(vb.w*f,FULL.w*0.06),FULL.w*2.2); const k=nw/vb.w; vb.x=cx-(cx-vb.x)*k; vb.y=cy-(cy-vb.y)*k; vb.w=nw; vb.h*=k; apply(); }
+const center=()=>[vb.x+vb.w/2,vb.y+vb.h/2];
+document.getElementById("zin").onclick=()=>zoomAt(.6,...center());
+document.getElementById("zout").onclick=()=>zoomAt(1/.6,...center());
+document.getElementById("zreset").onclick=reset;
+function toSvg(cx,cy){const r=pad();return [vb.x+(cx-r.left)/r.width*vb.w, vb.y+(cy-r.top)/r.height*vb.h];}
+svg.addEventListener("wheel",e=>{e.preventDefault();zoomAt(e.deltaY>0?1.15:1/1.15,...toSvg(e.clientX,e.clientY));},{passive:false});
+const ptrs=new Map(); let moved=0, pinch0=null;
+svg.addEventListener("pointerdown",e=>{ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=0;svg.setPointerCapture(e.pointerId);svg.classList.add("drag");if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch0={d:Math.hypot(a.x-b.x,a.y-b.y),w:vb.w};}});
+svg.addEventListener("pointermove",e=>{
+  if(!ptrs.has(e.pointerId))return; const p=ptrs.get(e.pointerId); const r=pad();
+  if(ptrs.size===1){ const dx=e.clientX-p.x, dy=e.clientY-p.y; moved+=Math.abs(dx)+Math.abs(dy); vb.x-=dx/r.width*vb.w; vb.y-=dy/r.height*vb.h; p.x=e.clientX;p.y=e.clientY; svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+  else if(ptrs.size===2&&pinch0){ p.x=e.clientX;p.y=e.clientY; moved+=10; const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); const c=toSvg((a.x+b.x)/2,(a.y+b.y)/2); zoomAt((pinch0.w*pinch0.d/d)/vb.w,...c); }
+});
+const up=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch0=null;if(!ptrs.size){svg.classList.remove("drag");drawMarkers();}};
+svg.addEventListener("pointerup",up); svg.addEventListener("pointercancel",up);
+new ResizeObserver(()=>apply()).observe(document.getElementById("mapbox"));
+function updScale(){ const r=pad(); if(!r.width)return; const unitPerPx=vb.w/r.width; let km=[0.5,1,2,5,10].find(k=>k*KM/unitPerPx>60)||10; document.getElementById("scalebar").style.width=(km*KM/unitPerPx).toFixed(0)+"px"; document.querySelector("#scale span").textContent=(km<1?km*1000+" m":km+" km"); }
+
+// ---------- Rendu ----------
+let selected=null, filter="all";
+function statusOf(id){ const ds=dives.filter(d=>d.site===id); return {done:ds.some(d=>d.statut==="faite"), plan:ds.some(d=>d.statut==="prevue"), n:ds.length}; }
+function drawMarkers(){
+  const r=pad(); const s=r.width? vb.w/r.width : 1; // unités par px
+  gMk.replaceChildren(); gLbl.replaceChildren();
+  const showAll = vb.w < FULL.w*0.38;
+  placeEls.forEach(t=>t.setAttribute("font-size",(11*s).toFixed(2)));
+  const order=[...SITES].sort((a,b)=>(a[0]===selected)-(b[0]===selected));
+  for(const [id,name,la,lo] of order){
+    const [x,y]=px(la,lo); const st=statusOf(id); const sel=id===selected;
+    if(filter==="faite"&&!st.done&&!sel) continue;
+    if(filter==="prevue"&&!st.plan&&!sel) continue;
+    const w=(sel?18:13)*s, h=(sel?13:9.5)*s;
+    const g=el("g",{class:"mk",tabindex:0,role:"button","aria-label":name,style:"cursor:pointer"},gMk);
+    el("circle",{cx:x,cy:y,r:14*s,fill:"transparent"},g);
+    if(st.plan) el("rect",{x:x-w/2-3*s,y:y-h/2-3*s,width:w+6*s,height:h+6*s,rx:5*s,fill:"none",stroke:css("--plan"),"stroke-width":2.2*s},g);
+    el("rect",{x:x-w/2,y:y-h/2,width:w,height:h,rx:3*s,fill:st.done?css("--done"):css("--stone"),stroke:st.done?css("--done"):css("--stone-ink"),"stroke-width":(sel?2.2:1.4)*s},g);
+    if(st.n>1){const t=el("text",{x,y:y+3.2*s,"text-anchor":"middle","font-size":8.5*s,"font-weight":700,fill:st.done?"#fff":css("--stone-ink")},g);t.textContent=st.n;}
+    const go=ev=>{ if(moved>8) return; ev.stopPropagation(); select(id); };
+    g.addEventListener("click",go); g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();select(id);}});
+    if(showAll||sel){ const t=el("text",{x:x-(w/2+5*s),y:y+3.5*s,"text-anchor":"end","font-size":(sel?12.5:10.5)*s,"font-weight":sel?700:400,fill:css("--fg"),stroke:css("--sea"),"stroke-width":3*s,"paint-order":"stroke"},gLbl); t.textContent=name;
+      if(byId[id].zone==="Côte est"){t.setAttribute("text-anchor","start");t.setAttribute("x",x+w/2+5*s);} }
+  }
+}
+const fmtDate=d=>{ if(!d) return "Date à fixer"; const [y,m,j]=d.split("-"); const mo=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."][+m-1]; return `${+j} ${mo} ${y}`; };
+const metrics=d=>[d.prof?`${String(d.prof).replace(".",",")} m`:null,d.duree?`${d.duree} min`:null].filter(Boolean).join(" · ");
+function item(d,TM,SI){
+  const b=document.createElement("button"); b.className="item"; b.type="button";
+  const dot=document.createElement("span"); dot.className="dot "+d.statut;
+  const mid=document.createElement("span"); mid.style.minWidth="0";
+  const t=document.createElement("div"); t.className="t"; t.textContent=byId[d.site]?.name||d.site;
+  const s=document.createElement("div"); s.className="s"; const kg=v=>String(v).replace(".",",");
+  const lest=[d.lestChris!=null?"Chris "+kg(d.lestChris):null,d.lestVero!=null?"Véro "+kg(d.lestVero):null].filter(Boolean).join(" / ");
+  const tm=TM&&TM.get(d.id);
+  s.textContent=fmtDate(d.date)+(tm?" · "+tm.time.replace(":"," h ")+(tm.assumed?" (?)":""):"")+(d.gaz&&d.gaz!=="Air"?" · "+d.gaz:"")+(lest?" · Lest "+lest+" kg":"");
+  if(SI&&SI.has(d.id)){ const si=document.createElement("span"); si.className="si"; si.textContent=" · IS "+SI.get(d.id); s.append(si); }
+  mid.append(t,s);
+  const m=document.createElement("span"); m.className="m"; m.textContent=metrics(d);
+  b.append(dot,mid,m); b.onclick=()=>{ select(d.site,false); if(!readonly) openForm(d); }; return b;
+}
+function render(){
+  const done=dives.filter(d=>d.statut==="faite"), plan=dives.filter(d=>d.statut==="prevue");
+  const maxP=Math.max(0,...done.map(d=>+d.prof||0)); const tot=done.reduce((a,d)=>a+(+d.duree||0),0);
+  const st=document.getElementById("stats"); st.replaceChildren();
+  [[done.length,"Réalisées"],[plan.length,"À venir"],[maxP?String(maxP).replace(".",",")+" m":"–","Prof. max"],[tot?`${Math.floor(tot/60)} h ${String(tot%60).padStart(2,"0")}`:"–","Sous l’eau"]]
+    .forEach(([v,l])=>{const d=document.createElement("div");d.className="stat";const b=document.createElement("b");b.textContent=v;const s=document.createElement("span");s.textContent=l;d.append(b,s);st.append(d);});
+  const list=document.getElementById("list"); list.replaceChildren();
+  TM=diveTimes(dives); SI=surfaceIntervals(dives,TM);
+  const shown=dives.filter(d=>filter==="all"||d.statut===filter);
+  if(!shown.length){ const e=document.createElement("div"); e.className="empty";
+    e.innerHTML = dives.length? "Aucune plongée dans ce filtre." : readonly? "Aucune plongée dans cette copie." : "<strong>Le carnet est vide.</strong> Touchez un site sur la carte, puis « Ajouter une plongée ici », ou utilisez le bouton + Ajouter. Marquez-la « À venir » pour la planifier ou « Réalisée » une fois faite.";
+    list.append(e); }
+  const tsOf=d=>TM.get(d.id)?.ts??Infinity;
+  const P=shown.filter(d=>d.statut==="prevue").sort((a,b)=>tsOf(a)-tsOf(b));
+  const F=shown.filter(d=>d.statut==="faite").sort((a,b)=>tsOf(b)-tsOf(a));
+  if(P.length){const h=document.createElement("div");h.className="group";h.textContent=`À venir · ${P.length}`;list.append(h);P.forEach(d=>list.append(item(d,TM,SI)));}
+  if(F.length){const h=document.createElement("div");h.className="group";h.textContent=`Réalisées · ${F.length}`;list.append(h);F.forEach(d=>list.append(item(d,TM,SI)));}
+  renderSite(); drawMarkers();
+  window.BONAIRE.listeners.forEach(f=>{try{f();}catch(e){console.error(e);}});
+}
+// intervalle surface (< 24 h) depuis la sortie de la plongée précédente
+function surfaceIntervals(list,TM){ const M=new Map();
+  const L=list.filter(d=>TM.has(d.id)).sort((a,b)=>TM.get(a.id).ts-TM.get(b.id).ts);
+  for(let i=1;i<L.length;i++){ const p=L[i-1], c=L[i]; const end=TM.get(p.id).ts+(+p.duree||0)*60000; const m=Math.round((TM.get(c.id).ts-end)/60000);
+    if(m>=0&&m<24*60) M.set(c.id,m>=60?`${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")}`:`${m} min`); else if(m<0) M.set(c.id,"chevauchement"); }
+  return M; }
+function renderSite(){
+  const c=document.getElementById("sitecard"); if(!selected) return;
+  const s=byId[selected]; const ds=dives.filter(d=>d.site===selected);
+  c.replaceChildren();
+  const z=document.createElement("span"); z.className="zone"; z.textContent=s.zone+` · ${s.lat.toFixed(3)}°N ${Math.abs(s.lon).toFixed(3)}°O`;
+  const h=document.createElement("h2"); h.textContent=s.name;
+  const p=document.createElement("p"); const nd=ds.filter(d=>d.statut==="faite").length, np=ds.length-nd;
+  p.textContent = ds.length? `${nd} réalisée${nd>1?"s":""}, ${np} à venir sur ce site.` : "Aucune plongée enregistrée ici pour l’instant.";
+  const row=document.createElement("div"); row.className="row";
+  const a=document.createElement("button"); a.className="btn pri"; a.type="button"; a.textContent="Ajouter une plongée ici"; a.onclick=()=>openForm(null,selected);
+  const pl=document.createElement("button"); pl.className="btn"; pl.type="button"; pl.textContent="Planifier ici"; pl.onclick=()=>window.BONAIRE.plan&&window.BONAIRE.plan({site:selected});
+  if(!readonly) row.append(a); row.append(pl); c.append(z,h,p,row);
+  if(ds.length){ const l=document.createElement("div"); l.className="list"; ds.sort((a,b)=>(TM.get(a.id)?.ts||0)-(TM.get(b.id)?.ts||0)).forEach(d=>l.append(item(d,TM,SI))); c.append(l); }
+}
+function select(id,scroll=true){ selected=id; renderSite(); drawMarkers();
+  if(scroll && window.matchMedia("(max-width:860px)").matches) document.getElementById("sitecard").scrollIntoView({behavior:"smooth",block:"start"}); }
+document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{filter=b.dataset.f;document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));render();});
+
+// ---------- Formulaire ----------
+const ov=document.getElementById("ov"), form=document.getElementById("form");
+const fsite=document.getElementById("fsite");
+let zones={}; SITES.forEach(s=>(zones[s[4]]??=[]).push(s));
+for(const z in zones){const og=document.createElement("optgroup");og.label=z;zones[z].forEach(s=>{const o=document.createElement("option");o.value=s[0];o.textContent=s[1];og.append(o);});fsite.append(og);}
+let editId=null, fstat="prevue", delArmed=false;
+const segs=form.querySelectorAll(".seg button");
+function setStat(s){fstat=s;segs.forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===s));}
+segs.forEach(b=>b.onclick=()=>setStat(b.dataset.s));
+const $=id=>document.getElementById(id);
+function openForm(d,site){
+  editId=d?d.id:null; delArmed=false;
+  $("ftitle").textContent=d?"Modifier la plongée":"Nouvelle plongée";
+  setStat(d?d.statut:"prevue");
+  fsite.value=d?d.site:(site||selected||"karpata");
+  $("fdate").value=d?.date||""; $("fheure").value=d?.heure||"";
+  const gz=d?.gaz||"Air"; if(![...$("fgaz").options].some(o=>o.value===gz)){const o=document.createElement("option");o.textContent=gz;$("fgaz").append(o);} $("fgaz").value=gz;
+  $("fprof").value=d?.prof??""; $("fduree").value=d?.duree??""; $("ftemp").value=d?.temp??""; $("flchris").value=d?.lestChris??""; $("flvero").value=d?.lestVero??""; $("fnotes").value=d?.notes||"";
+  $("fdel").hidden=!d; $("fsim").textContent=d?"Simuler cette plongée":"Simuler"; $("fdel").textContent="Supprimer"; $("ferr").textContent="";
+  ov.hidden=false; setTimeout(()=>fsite.focus(),30);
+}
+function close(){ov.hidden=true;}
+$("addbtn").onclick=()=>openForm(null);
+$("fcancel").onclick=close;
+$("fsim").onclick=()=>{ const prev=editId?dives.find(x=>x.id===editId):null; const num=v=>v===""?null:Number(v);
+  const d={...(prev||{}),id:editId||null,site:fsite.value,date:$("fdate").value||null,heure:$("fheure").value||null,gaz:$("fgaz").value,prof:num($("fprof").value),duree:num($("fduree").value)};
+  if(prev&&prev.gaz!==d.gaz){delete d.o2;delete d.he;}
+  if(prev&&(+prev.prof!==+d.prof||+prev.duree!==+d.duree)) delete d.profile;
+  close(); if(window.BONAIRE.plan) window.BONAIRE.plan(d); };
+ov.addEventListener("click",e=>{if(e.target===ov)close();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!ov.hidden)close();});
+$("fdel").onclick=async()=>{
+  if(!delArmed){delArmed=true;$("fdel").textContent="Confirmer la suppression";return;}
+  try{await delDive(editId);close();}catch(e){$("ferr").textContent="Suppression impossible. Réessayez dans un instant.";}
+};
+form.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const num=v=>v===""?null:Number(v);
+  const prev=editId?dives.find(x=>x.id===editId):null;
+  const obj={...(prev?(({id,...r})=>r)(prev):{}),site:fsite.value,statut:fstat,date:$("fdate").value||null,heure:$("fheure").value||null,gaz:$("fgaz").value,prof:num($("fprof").value),duree:num($("fduree").value),temp:num($("ftemp").value),lestChris:num($("flchris").value),lestVero:num($("flvero").value),notes:$("fnotes").value.trim().slice(0,2000),maj:new Date().toISOString()};
+  if(obj.prof!=null&&(obj.prof<0||obj.prof>60)){$("ferr").textContent="La profondeur doit être entre 0 et 60 m.";return;}
+  if([obj.lestChris,obj.lestVero].some(v=>v!=null&&(v<0||v>20))){$("ferr").textContent="Le lestage doit être entre 0 et 20 kg.";return;}
+  if(obj.duree!=null&&(obj.duree<0||obj.duree>240)){$("ferr").textContent="La durée doit être entre 0 et 240 min.";return;}
+  // profil détaillé et gaz : gardés seulement s'ils restent cohérents avec la saisie
+  if(prev&&(+prev.prof!==+obj.prof||+prev.duree!==+obj.duree)) delete obj.profile;
+  if(!prev||prev.gaz!==obj.gaz){ delete obj.o2; delete obj.he; }
+  const id=editId||("p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  try{ await saveDive(id,obj); selected=obj.site; close(); render(); }
+  catch(err){ $("ferr").textContent = err&&err.code==="invalid_argument" ? "Vous n’avez que la lecture sur ce carnet." : "Enregistrement impossible. Réessayez dans un instant."; }
+});
+
+reset(); render();
+})();
+</script>
+<div class="toast" id="toast" hidden></div>
+<script>
+
+/* ---------------- Bühlmann ZHL-16C ---------------- */
+const N2HT=[5,8,12.5,18.5,27,38.3,54.3,77,109,146,187,239,305,390,498,635];
+const N2A=[1.1696,1.0,0.8618,0.7562,0.62,0.5043,0.441,0.4,0.375,0.35,0.3295,0.3065,0.2835,0.261,0.248,0.2327];
+const N2B=[0.5578,0.6514,0.7222,0.7825,0.8126,0.8434,0.8693,0.891,0.9092,0.9222,0.9319,0.9403,0.9477,0.9544,0.9602,0.9653];
+const HEHT=[1.88,3.02,4.72,6.99,10.21,14.48,20.53,29.11,41.2,55.19,70.69,90.34,115.29,147.42,188.24,240.03];
+const HEA=[1.6189,1.383,1.1919,1.0458,0.922,0.8205,0.7305,0.6502,0.595,0.5545,0.5333,0.5189,0.5181,0.5176,0.5172,0.5119];
+const HEB=[0.477,0.5747,0.6527,0.7223,0.7582,0.7957,0.8279,0.8553,0.8757,0.8903,0.8997,0.9073,0.9122,0.9171,0.9217,0.9267];
+const KN=N2HT.map(h=>Math.LN2/h), KH=HEHT.map(h=>Math.LN2/h);
+const PH2O=0.0627, AIR_N2=0.7902;
+
+function env(s){
+  const P0=1.01325*Math.pow(1-2.25577e-5*(s.alt||0),5.25588);
+  const mpb=s.water==='fresh'?10.2:10.0;
+  return {P0,mpb,pa:d=>P0+d/mpb,dp:p=>(p-P0)*mpb};
+}
+const sat=P0=>({n:N2HT.map(()=>(P0-PH2O)*AIR_N2),h:N2HT.map(()=>0)});
+const clone=t=>({n:t.n.slice(),h:t.h.slice()});
+function stay(t,P,g,min){ if(min<=0)return;
+  for(let i=0;i<16;i++){
+    t.n[i]+=((P-PH2O)*g.n2-t.n[i])*(1-Math.exp(-KN[i]*min));
+    t.h[i]+=((P-PH2O)*g.he-t.h[i])*(1-Math.exp(-KH[i]*min));
+  }}
+const schr=(p0,pi0,R,k,t)=>pi0+R*(t-1/k)-(pi0-p0-R/k)*Math.exp(-k*t);
+function move(t,P1,P2,g,min){ if(min<=0)return; const R=(P2-P1)/min;
+  for(let i=0;i<16;i++){
+    t.n[i]=schr(t.n[i],(P1-PH2O)*g.n2,R*g.n2,KN[i],min);
+    t.h[i]=schr(t.h[i],(P1-PH2O)*g.he,R*g.he,KH[i],min);
+  }}
+function tolP(t,gf){ let m=0;
+  for(let i=0;i<16;i++){ const pn=t.n[i],ph=t.h[i],pt=pn+ph;
+    const a=(N2A[i]*pn+HEA[i]*ph)/pt, b=(N2B[i]*pn+HEB[i]*ph)/pt;
+    const p=(pt-a*gf)/(gf/b+1-gf); if(p>m)m=p; }
+  return m; }
+function surfGF(t,P0){ return t.n.map((pn,i)=>{const ph=t.h[i],pt=pn+ph;
+  const a=(N2A[i]*pn+HEA[i]*ph)/pt, b=(N2B[i]*pn+HEB[i]*ph)/pt; const M=P0/b+a;
+  return (pt-P0)/(M-P0)*100; }); }
+
+/* oxygen toxicity */
+const CNS_T=[[0.6,720],[0.7,570],[0.8,450],[0.9,360],[1.0,300],[1.1,240],[1.2,210],[1.3,180],[1.4,150],[1.5,120],[1.6,45]];
+function cnsLimit(po2){ if(po2<=0.5)return Infinity; if(po2<=0.6)return 720; if(po2>=1.6)return 45;
+  for(let i=1;i<CNS_T.length;i++){const [p1,l1]=CNS_T[i-1],[p2,l2]=CNS_T[i]; if(po2<=p2)return l1+(l2-l1)*(po2-p1)/(p2-p1);} return 45; }
+const otuRate=po2=>po2>0.5?Math.pow((po2-0.5)/0.5,0.83):0;
+
+function gasOf(o2,he){ const f=o2/100,h=(he||0)/100; return {o2:f,he:h,n2:Math.max(0,1-f-h)}; }
+
+/* plan one dive (single gas, up to 10 segments [{d,t}] : go from previous depth to d over t min) */
+function plan(s,E,start,levels,g){
+  const t=clone(start), segs=[]; let run=0; let maxCeil=0; const ceil=[[0,0]];
+  const P=d=>E.pa(d);
+  const push=(k,d0,d1,dur,kind)=>{ if(dur<=1e-9)return; run+=dur;
+    const last=segs[segs.length-1];
+    if(kind==='asc'&&last&&last.kind==='asc'){last.d1=d1;last.dur+=dur;last.run=run;}
+    else segs.push({k,d0,d1,dur,run,kind});
+    const c=Math.max(0,E.dp(tolP(t,s.gfHi/100))); ceil.push([run,c]); };
+  let cur0=0, violation=false;
+  levels.forEach(lv=>{ const d=lv.d;
+    if(Math.abs(d-cur0)<1e-9){ stay(t,P(d),g,lv.t); push(`Plat à ${fmt1(d)} m`,d,d,lv.t,'bottom'); }
+    else{ const down=d>cur0, tt=lv.t>0?lv.t:Math.abs(d-cur0)/(down?s.desc:s.asc);
+      move(t,P(cur0),P(d),g,tt); push(down?'Descente':'Remontée prévue',cur0,d,tt,down?'desc':'trans'); }
+    if(E.dp(tolP(t,s.gfHi/100))>d+0.3) violation=true;
+    cur0=d; });
+  const depth=cur0, maxDepth=Math.max(...levels.map(l=>l.d));
+  const atBottom=clone(t);
+  maxCeil=Math.max(0,E.dp(tolP(t,s.gfLo/100)));
+  const asc=(a,b)=>{const d=(a-b)/s.asc; move(t,P(a),P(b),g,d); push('Remontée',a,b,d,'asc');};
+  const deco=tolP(t,s.gfHi/100)>E.P0+1e-9;
+  const stops=[];
+  if(!deco){
+    if(maxDepth>10&&depth>5){asc(depth,5); stay(t,P(5),g,3); push('Palier de sécurité',5,5,3,'safety'); asc(5,0);} else asc(depth,0);
+  }else{
+    const nextOf=c=>{let n=(c%3>1e-9)?Math.floor(c/3)*3:c-3; if(n<0)n=0; if(n>0&&n<s.last)n=0; return n;};
+    let cur=depth, first=null; const gl=s.gfLo/100, gh=s.gfHi/100;
+    while(cur>0){ const nx=nextOf(cur); const tt=clone(t); move(tt,P(cur),P(nx),g,(cur-nx)/s.asc);
+      const ok= nx===0? tolP(tt,gh)<=E.P0+1e-9 : E.dp(tolP(tt,gl))<=nx+1e-6;
+      if(ok){asc(cur,nx);cur=nx;} else {first=cur;break;} }
+    if(first!==null){
+      const gfAt=d=>gh-(gh-gl)*d/first;
+      while(cur>0){ const nx=nextOf(cur); let w=0;
+        for(;;){ const tt=clone(t); move(tt,P(cur),P(nx),g,(cur-nx)/s.asc);
+          const ok= nx===0? tolP(tt,gh)<=E.P0+1e-9 : E.dp(tolP(tt,gfAt(nx)))<=nx+1e-6;
+          if(ok||w>999)break; stay(t,P(cur),g,1); w++; }
+        if(w>0){push('Palier',cur,cur,w,'stop');stops.push([cur,w]);}
+        asc(cur,nx); cur=nx; }
+    }
+  }
+  // O2 + gas
+  let cns=0,otu=0,gasL=0;
+  for(const sg of segs){ const pAvg=P((sg.d0+sg.d1)/2), po2=pAvg*g.o2;
+    cns+=sg.dur/cnsLimit(po2)*100; otu+=sg.dur*otuRate(po2); gasL+=pAvg*sg.dur*(s.sacL||s.sac); }
+  const bottomEnd=segs.filter(x=>x.kind==='desc'||x.kind==='bottom'||x.kind==='trans').reduce((a,x)=>a+x.dur,0);
+  return {segs,run,deco,violation,stops,cns,otu,gasL,end:t,atBottom,lastDepth:depth,maxDepth,bottomEnd,maxCeil,ceil,tts:run-bottomEnd};
+}
+/* remaining no-stop time if staying at the last level */
+function ndlLeft(s,E,state,depth,g){
+  const t=clone(state); if(tolP(t,s.gfHi/100)>E.P0+1e-9)return 0;
+  for(let m=1;m<=240;m++){ stay(t,E.pa(depth),g,1); if(tolP(t,s.gfHi/100)>E.P0+1e-9)return m-1; }
+  return Infinity;
+}
+/* desaturation at the surface on air: returns minutes to (a) no supersaturation, (b) 99 % back to equilibrium + curve */
+function desat(s,E,state){
+  const eqN=(E.P0-PH2O)*AIR_N2;
+  // (b) closed form per compartment: excess decays exponentially
+  let full=0, slow=-1;
+  for(let i=0;i<16;i++){
+    const exN=state.n[i]-eqN, thrN=0.01*eqN;
+    if(exN>thrN){const m=N2HT[i]*Math.log2(exN/thrN); if(m>full){full=m;slow=i;}}
+    const exH=state.h[i], thrH=0.01*eqN;
+    if(exH>thrH){const m=HEHT[i]*Math.log2(exH/thrH); if(m>full){full=m;slow=i;}}
+  }
+  // (a) + curve, 5 min steps
+  const t=clone(state), curve=[]; let clear=null; const air={n2:AIR_N2,he:0};
+  const maxGF=tt=>Math.max(0,...surfGF(tt,E.P0));
+  const excess=tt=>Math.max(0,...tt.n.map(n=>n-eqN))+Math.max(0,...tt.h);
+  const ex0=Math.max(1e-9,excess(t)), span=Math.max(60,full*1.05);
+  for(let m=0;m<=span+1e-9;m+=5){ if(m>0)stay(t,E.P0,air,5);
+    const gfv=maxGF(t); if(clear===null&&gfv<=0.5)clear=m;
+    curve.push([m,excess(t)/ex0*100,gfv]); }
+  return {clear:clear??0,full,slow,curve};
+}
+
+function ndlAt(s,E,start,depth,g){
+  const t=clone(start); const tD=depth/s.desc; move(t,E.P0,E.pa(depth),g,tD);
+  if(tolP(t,s.gfHi/100)>E.P0)return 0;
+  for(let m=1;m<=240;m++){ stay(t,E.pa(depth),g,1); if(tolP(t,s.gfHi/100)>E.P0+1e-9)return Math.floor(tD+m-1); }
+  return Infinity;
+}
+
+/* profile of a logbook dive: stored segments ('profile'), older stored levels, else a square profile fitted to its duration */
+function logLevels(d,s){
+  const clean=a=>Array.isArray(a)?a.filter(l=>l&&+l.d>=0&&l.d!=null).map(l=>({d:+l.d,t:Math.max(0,+l.t||0)})):[];
+  const P=clean(d.profile).slice(0,10); if(P.some(l=>l.d>0)) return P;
+  const L=clean(d.levels).filter(l=>l.d>0).slice(0,5); if(L.length){ const out=[]; L.forEach(l=>{out.push({d:l.d,t:0});out.push({d:l.d,t:l.t});}); return out; }
+  const tr=d.depth/s.desc+d.depth/s.asc+(d.depth>10?3:0);
+  return [{d:+d.depth,t:0},{d:+d.depth,t:Math.max(0,d.duration-tr)}];
+}
+/* residual loading from the logbook (48 h window, square profiles) */
+function residual(s,E,startDate,excludeId){
+  const t0=startDate.getTime(), win=48*3600e3;
+  const prev=dives.filter(d=>d.id!==excludeId&&d.date&&d.depth>0&&d.duration>0).map(d=>({...d,ts:toDate(d.date,d.time).getTime()}))
+    .filter(d=>d.ts<t0&&d.ts>t0-win).sort((a,b)=>a.ts-b.ts);
+  let t=sat(E.P0), cursor=t0-win, cns=0; const used=[];
+  for(const d of prev){
+    const si=Math.max(0,(d.ts-cursor)/60000); stay(t,E.P0,{n2:AIR_N2,he:0},si); cns*=Math.pow(.5,si/90);
+    const r=plan(s,E,t,logLevels(d,s),gasOf(d.o2||21,d.he||0));
+    t=r.end; cns+=r.cns; cursor=d.ts+r.run*60000; used.push({d,end:cursor});
+  }
+  const si=Math.max(0,(t0-cursor)/60000);
+  if(used.length){stay(t,E.P0,{n2:AIR_N2,he:0},si); cns*=Math.pow(.5,si/90);}
+  return {t,cns,used,lastSI:used.length?si:null};
+}
+
+/* ---------------- helpers ---------------- */
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const toDate=(d,t)=>new Date(d+'T'+(t||'09:00'));
+const fmt1=n=>n.toLocaleString('fr-FR',{maximumFractionDigits:1});
+const fmt2=n=>n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const mmss=m=>{const s=Math.round(m*60);return Math.floor(s/60)+':'+pad(s%60);};
+const hm=min=>{const h=Math.floor(min/60),m=Math.round(min%60);return h?`${h} h ${pad(m)}`:`${m} min`;};
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function toast(msg){const el=$('toast');el.textContent=msg;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,2600);}
+function lsGet(k){try{return JSON.parse(localStorage.getItem(k));}catch{return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+function profTxt(P){ let f=0; return P.map(l=>{const t=Math.abs(+l.d-f)<1e-9?`${fmt1(+l.d)} m ${Math.round(l.t)}'`:`${fmt1(f)}→${fmt1(+l.d)} m ${Math.round(l.t)}'`; f=+l.d; return t;}).join(' · '); }
+function gasName(o2,he){o2=+o2;he=+he||0; if(he>0)return `Tx ${o2}/${he}`; if(o2===21)return 'Air'; if(o2===100)return 'O₂'; return 'EAN'+o2;}
+
+/* ---------------- planner state ---------------- */
+const PRESETS=[['Air',21,0],['EAN32',32,0],['EAN36',36,0],['EAN40',40,0],['Tx 21/35',21,35],['Tx 18/45',18,45]];
+const GFS=[['30/70',30,70],['40/85',40,85],['45/95',45,95],['50/80',50,80]];
+const now=new Date(); now.setMinutes(0,0,0); now.setHours(now.getHours()+1);
+const DEF={date:`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`,time:`${pad(now.getHours())}:00`,site:'',
+  o2:32,he:0,ppo2:1.4,gfLo:40,gfHi:85,water:'salt',alt:0,sac:1.1,sacU:'bar',tank:12,fill:200,reserve:50,desc:18,asc:9,last:3};
+const DEF_LEVELS=[{d:15,t:10},{d:15,t:20},{d:5,t:8},{d:5,t:3}];
+const FIELDS={date:'pDate',time:'pTime',site:'pSite',o2:'pO2',he:'pHe',ppo2:'pPpo2',gfLo:'pGfLo',gfHi:'pGfHi',water:'pWater',alt:'pAlt',sac:'pSac',sacU:'pSacU',tank:'pTank',fill:'pFill',reserve:'pReserve',desc:'pDesc',asc:'pAsc',last:'pLast'};
+const TEXT=['date','time','site','water','sacU'];
+let saved=lsGet('bp-settings')||{};
+if(saved.sac!=null&&!saved.sacU) saved.sacU=saved.sac>5?'l':'bar';
+const init={...DEF,...saved,date:DEF.date,time:DEF.time,site:''};
+for(const [k,id] of Object.entries(FIELDS)) $(id).value=init[k];
+let initLevels=Array.isArray(saved.profile)&&saved.profile.length?saved.profile:(Array.isArray(saved.levels)&&saved.levels.length?logLevels({levels:saved.levels},{desc:18,asc:9}):DEF_LEVELS);
+
+/* profile segment rows */
+const MAXSEG=10;
+function speedTxt(from,l,s){
+  if(Math.abs(l.d-from)<1e-9) return ['',`plat · ${l.t} min à ${fmt1(l.d)} m`];
+  const down=l.d>from, v=l.t>0?Math.abs(l.d-from)/l.t:(down?s.desc:s.asc);
+  const txt=`${down?'descente':'remontée'} ${fmt1(v)} m/min${l.t>0?'':' (par défaut)'}`;
+  if(!down&&v>10+1e-9) return ['bad',txt+' · trop rapide (max 10 m/min)'];
+  if(!down&&from<=6&&v>3+1e-9&&l.d===0) return ['warn',txt+' · ralentir près de la surface'];
+  return ['',txt];
+}
+function renderLevels(levels){
+  const s0={desc:+$('pDesc').value||18,asc:+$('pAsc').value||9}; let from=0;
+  $('levels').innerHTML=levels.map((l,i)=>{ const [c,t]=speedTxt(from,l,s0); const f=from; from=l.d;
+    return `<div class="lvl">
+    <span class="n" aria-hidden="true">${i+1}</span>
+    <span class="from">${fmt1(f)} m →</span>
+    <label class="big" for="lvD${i}"><input type="number" id="lvD${i}" min="0" max="100" step="0.5" inputmode="decimal" value="${l.d}" aria-label="Profondeur visée segment ${i+1}"><span>m</span></label>
+    <label class="big" for="lvT${i}"><input type="number" id="lvT${i}" min="0" max="300" step="1" inputmode="numeric" value="${l.t}" aria-label="Durée segment ${i+1}"><span>min</span></label>
+    <button type="button" class="rm" data-rm="${i}" aria-label="Retirer le segment ${i+1}" ${levels.length<2?'disabled':''}>×</button>
+    <span class="sp ${c}" id="lvS${i}">${t}</span></div>`; }).join('');
+  $('addLevel').disabled=levels.length>=MAXSEG;
+}
+function refreshSpeeds(L,s){ let from=0; L.forEach((l,i)=>{ const el=$('lvS'+i); if(!el)return; const [c,t]=speedTxt(from,l,s); el.className='sp '+c; el.textContent=t;
+  const fr=el.parentNode.querySelector('.from'); if(fr) fr.textContent=`${fmt1(from)} m →`; from=l.d; }); }
+function readLevels(){ const out=[];
+  for(let i=0;i<MAXSEG;i++){ const d=$('lvD'+i), t=$('lvT'+i); if(!d)break;
+    out.push({d:Math.min(100,Math.max(0,+d.value||0)),t:Math.min(300,Math.max(0,+t.value||0))}); }
+  return out.some(l=>l.d>0)?out:[{d:15,t:10},{d:15,t:20}]; }
+renderLevels(initLevels);
+$('addLevel').addEventListener('click',()=>{ const L=readLevels(); if(L.length>=MAXSEG)return;
+  const prev=L[L.length-1]; L.push({d:prev.d,t:5}); renderLevels(L); update(); $('lvD'+(L.length-1)).focus(); });
+$('levels').addEventListener('click',e=>{ const b=e.target.closest('[data-rm]'); if(!b)return;
+  const L=readLevels(); L.splice(+b.dataset.rm,1); renderLevels(L); update(); });
+
+function readS(){ const s={}; for(const [k,id] of Object.entries(FIELDS)){ const v=$(id).value; s[k]=TEXT.includes(k)?v:(v===''?DEF[k]:+v); }
+  s.o2=Math.min(100,Math.max(8,s.o2)); s.he=Math.min(100-s.o2,Math.max(0,s.he));
+  s.gfLo=Math.min(100,Math.max(5,s.gfLo)); s.gfHi=Math.min(100,Math.max(s.gfLo,s.gfHi));
+  s.desc=Math.max(1,s.desc); s.asc=Math.max(1,s.asc); s.sac=Math.max(0.1,s.sac); s.tank=Math.max(1,s.tank);
+  s.sacL=s.sacU==='bar'?s.sac*s.tank:s.sac;
+  s.levels=readLevels(); s.depth=Math.max(...s.levels.map(l=>l.d)); s.bottom=0;
+  return s; }
+
+function chips(){
+  const s=readS();
+  $('gasChips').innerHTML=PRESETS.map(([n,o,h])=>`<button type="button" class="chip" data-o2="${o}" data-he="${h}" aria-pressed="${s.o2===o&&s.he===h}">${n}</button>`).join('');
+  $('gfChips').innerHTML=GFS.map(([n,l,h])=>`<button type="button" class="chip" data-lo="${l}" data-hi="${h}" aria-pressed="${s.gfLo===l&&s.gfHi===h}">GF ${n}</button>`).join('');
+}
+$('gasChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;$('pO2').value=b.dataset.o2;$('pHe').value=b.dataset.he;update();});
+$('gfChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;$('pGfLo').value=b.dataset.lo;$('pGfHi').value=b.dataset.hi;update();});
+$('pSacU').addEventListener('change',e=>{ const tank=Math.max(1,+$('pTank').value||12), v=+$('pSac').value||0;
+  $('pSac').value=e.target.value==='bar'?Math.round(v/tank*100)/100:Math.round(v*tank*10)/10; });
+$('planForm').addEventListener('input',update);
+$('planForm').addEventListener('change',update);
+
+let last=null;
+function update(){
+  const s=readS(); const {site,date,time,depth,bottom,sacL,levels,...keep}=s; keep.profile=levels; lsSet('bp-settings',keep); refreshSpeeds(levels,s);
+  chips(); compute(s);
+}
+
+function compute(s){
+  const E=env(s), g=gasOf(s.o2,s.he), start=toDate(s.date,s.time);
+  const res=residual(s,E,isNaN(start)?new Date():start);
+  const r=plan(s,E,res.t,s.levels,g); s.bottom=Math.round(r.bottomEnd);
+  const ndl=ndlLeft(s,E,r.atBottom,r.lastDepth,g);
+  const ds=desat(s,E,r.end);
+  const Pb=E.pa(s.depth), po2=Pb*g.o2;
+  const mod=d=>Math.max(0,(d/g.o2-E.P0)*E.mpb);
+  const endD=Math.max(0,(Pb*g.n2/AIR_N2-E.P0)*E.mpb);
+  const usedBar=r.gasL/s.tank, remain=s.fill-usedBar;
+  const cnsTot=r.cns+res.cns;
+  last={s,E,g,r,res,ndl,ds};
+  if($('algoTag'))$('algoTag').textContent=`ZHL-16C · GF ${s.gfLo}/${s.gfHi}`;
+  $('sacHint').textContent=s.sacU==='bar'?`${fmt1(s.sac)} bar/min sur ${s.tank} l = ${fmt1(s.sacL)} l/min en surface.`:`${fmt1(s.sac)} l/min = ${fmt2(s.sac/s.tank)} bar/min sur ${s.tank} l.`;
+
+  // gas info
+  const hyp=E.P0*g.o2<0.16;
+  $('gasInfo').innerHTML=`<span>${gasName(s.o2,s.he)}</span><span>MOD ${fmt1(s.ppo2).replace(',',',')} : <b>${Math.floor(mod(s.ppo2))} m</b></span><span>MOD 1,6 : <b>${Math.floor(mod(1.6))} m</b></span>`+
+    (s.he>0?`<span>END à ${s.depth} m : <b>${Math.round(endD)} m</b></span>`:`<span>Prof. équivalente air : <b>${Math.round(endD)} m</b></span>`)+
+    (hyp?`<span style="color:var(--crit)">Hypoxique en surface</span>`:'');
+
+  // status
+  const st=[];
+  if(po2>s.ppo2+1e-9) st.push(['crit',`PO₂ ${fmt2(po2)} bar au fond : au-delà de la MOD (${Math.floor(mod(s.ppo2))} m pour ${fmt1(s.ppo2)} bar)`]);
+  if(hyp) st.push(['crit','Mélange hypoxique : non respirable en surface']);
+  if(r.deco) st.push(['warn',`Décompression obligatoire · ${r.stops.length} palier${r.stops.length>1?'s':''}, ${Math.ceil(r.tts)} min de remontée`]);
+  else st.push([ndl<3?'warn':'ok', ndl===Infinity?'Plongée sans palier · aucune limite dans les 4 h':`Plongée sans palier · encore ${ndl} min possibles à ${fmt1(r.lastDepth)} m avant palier`]);
+  if(r.violation) st.push(['crit','Plafond de décompression franchi pendant le profil : un segment remonte au-dessus du plafond']);
+  if(remain<s.reserve) st.push(['crit',`Pression estimée en sortie ${Math.round(remain)} bar : sous la réserve de ${s.reserve} bar`]);
+  if(cnsTot>80) st.push(['warn',`CNS ${Math.round(cnsTot)} % : exposition à l'oxygène élevée`]);
+  $('status').innerHTML=st.map(([c,t])=>`<div class="pill ${c}">${t}</div>`).join('');
+
+  // tiles
+  const ndlTxt=ndl===Infinity?'>240':ndl;
+  const tile=(k,v,u,h,c='')=>`<div class="tile ${c}"><span class="k">${k}</span><span class="v num">${v}<small>${u}</small></span><span class="h">${h}</span></div>`;
+  $('tiles').innerHTML=
+    tile('Marge NDL',r.deco?0:ndlTxt,'min',r.deco?'NDL dépassée':`restant à ${fmt1(r.lastDepth)} m, fin du dernier segment`, r.deco?'warn':(ndl<3?'warn':'ok'))+
+    tile('Durée totale',Math.ceil(r.run),'min',`dont remontée ${Math.ceil(r.tts)} min`)+
+    tile(r.deco?'Premier palier':'Plafond max',r.deco?(r.stops[0]?r.stops[0][0]:0):fmt1(r.maxCeil),'m',r.deco?'paliers tous les 3 m':`au GF bas ${s.gfLo} %`,r.deco?'warn':'')+
+    tile('PO₂ fond',fmt2(po2),'bar',`limite ${fmt1(s.ppo2)} bar`,po2>s.ppo2?'crit':(po2>s.ppo2-0.1?'warn':''))+
+    tile('CNS',Math.round(cnsTot),'%',`OTU ${Math.round(r.otu)}${res.cns>0.5?` · résiduel ${Math.round(res.cns)} %`:''}`,cnsTot>80?'warn':'')+
+    tile('Pression sortie',Math.max(0,Math.round(remain)),'bar',`${Math.round(r.gasL)} l consommés`,remain<s.reserve?'crit':'');
+
+  // run table
+  let rows=`<thead><tr><th>Étape</th><th class="r">Prof.</th><th class="r">Durée</th><th class="r">Runtime</th></tr></thead><tbody>`;
+  for(const sg of r.segs){ const cls=sg.kind==='stop'?'stop':sg.kind==='safety'?'safety':'';
+    const depthTxt=sg.d0===sg.d1?`${fmt1(sg.d0)} m`:`${fmt1(sg.d0)} → ${fmt1(sg.d1)} m`;
+    const dur=(sg.kind==='stop'||sg.kind==='safety'||sg.kind==='bottom')&&Math.abs(sg.dur-Math.round(sg.dur))<1e-6?`${Math.round(sg.dur)} min`:mmss(sg.dur);
+    rows+=`<tr class="${cls}"><td>${sg.k}</td><td class="r">${depthTxt}</td><td class="r">${dur}</td><td class="r">${Math.ceil(sg.run-1e-6)}'</td></tr>`; }
+  $('runTbl').innerHTML=rows+'</tbody>';
+  $('gasNote').innerHTML=`Gaz nécessaire : <b>${Math.round(r.gasL)} l</b> (${fmt1(usedBar)} bar sur ${s.tank} l) à ${fmt1(s.sacL)} l/min, soit ${fmt2(s.sacL/s.tank)} bar/min en surface. Tiers de sécurité : ne pas dépasser <b>${Math.round(s.fill-(s.fill-s.reserve)/3)} bar</b> au demi-tour en plongée aller-retour.`;
+
+  drawProfile(r,s,E,g,mod(s.ppo2));
+  drawTissues(surfGF(r.end,E.P0),s.gfHi);
+  renderDesat(ds,start,r.run,s);
+
+  // residual note
+  const nofly=r.deco?24:(res.used.length?18:12);
+  $('residNote').innerHTML=(res.used.length?
+    `Charge résiduelle : <b>${res.used.length} plongée${res.used.length>1?'s':''}</b> du carnet dans les 48 h précédentes, dernier intervalle surface <b>${hm(res.lastSI)}</b>. `:
+    `Aucune plongée du carnet dans les 48 h précédentes : tissus saturés à l'air en surface. `)+
+    `Avion : attendre au moins <b>${nofly} h</b> après la sortie (recommandation DAN).`;
+  $('addHint').textContent=s.site?'':'Ajoutez un nom de site pour le retrouver facilement.';
+  if(!$('sec-ndl').hidden) renderNdl();
+}
+
+/* ---------------- charts ---------------- */
+function niceStep(max,target){const raw=max/target, p=Math.pow(10,Math.floor(Math.log10(raw))); for(const m of [1,2,5,10]) if(raw<=m*p) return m*p; return 10*p;}
+/* user waypoints on the chart: cumulative time + depth at each segment end */
+function waypoints(L,s){ let cum=0,from=0; return L.map(l=>{ const dur=Math.abs(l.d-from)<1e-9?l.t:(l.t>0?l.t:Math.abs(l.d-from)/(l.d>from?s.desc:s.asc)); cum+=dur; from=l.d; return {t:cum,d:l.d}; }); }
+let drag=null, profMap=null;
+function drawProfile(r,s,E,g,modD){
+  if(drag)return;
+  const W=640,H=230,L=40,R=14,T=14,B=28, w=W-L-R, h=H-T-B;
+  const tMax=Math.max(10,Math.ceil(r.run*1.15/5)*5), dMax=Math.ceil((Math.max(s.depth,5)+5)/5)*5;
+  const x=t=>L+t/tMax*w, y=d=>T+d/dMax*h;
+  let pts=[[0,0]]; for(const sg of r.segs) pts.push([sg.run,sg.d1]);
+  const line=pts.map(([t,d],i)=>`${i?'L':'M'}${x(t).toFixed(1)},${y(d).toFixed(1)}`).join('');
+  const area=line+`L${x(pts[pts.length-1][0]).toFixed(1)},${y(0)}Z`;
+  const cl=r.ceil.map(([t,d],i)=>`${i?'L':'M'}${x(t).toFixed(1)},${y(d).toFixed(1)}`).join('');
+  let grid='';
+  const dS=niceStep(dMax,5); for(let d=0;d<=dMax;d+=dS) grid+=`<line x1="${L}" x2="${W-R}" y1="${y(d)}" y2="${y(d)}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${y(d)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${d} m</text>`;
+  const tS=niceStep(tMax,7); for(let t=0;t<=tMax+1e-9;t+=tS) grid+=`<line x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${T+h}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/><text x="${x(t)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${t}'</text>`;
+  let modLine=''; if(modD<dMax) modLine=`<line x1="${L}" x2="${W-R}" y1="${y(modD)}" y2="${y(modD)}" stroke="var(--crit)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="${W-R-4}" y="${y(modD)-5}" text-anchor="end" font-size="11" fill="var(--crit)">MOD ${Math.floor(modD)} m</text>`;
+  let labels=''; for(const sg of r.segs) if(sg.kind==='stop'||sg.kind==='safety'){const xm=x(sg.run-sg.dur/2);labels+=`<text x="${xm}" y="${y(sg.d0)-7}" text-anchor="middle" font-size="11" font-weight="700" fill="${sg.kind==='stop'?'var(--warn)':'var(--accent)'}">${Math.round(sg.dur)}'</text>`;}
+  r.segs.filter(z=>z.kind==='bottom'&&z.dur>0).forEach((b,i)=>{ labels+=`<text x="${x(b.run-b.dur/2)}" y="${y(b.d0)+16}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)">${fmt1(b.d0)} m${i===0?' · '+gasName(s.o2,s.he):''}</text>`; });
+  $('profile').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Profil de plongée">${grid}${modLine}
+    <path d="${area}" fill="var(--accent-soft)" stroke="none"/>
+    <path d="${cl}" fill="none" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>${labels}
+    <line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)" stroke-width="1"/>
+    <path id="userPath" fill="none" stroke="var(--ink)" stroke-width="1" stroke-dasharray="2 3" opacity=".6"/>
+    <g id="handles">${s.levels.map((_,i)=>`<g class="hdl" data-h="${i}" tabindex="0" role="slider" aria-label="Point ${i+1} du profil"><circle r="16" fill="transparent"/><circle class="vis" r="6.5"/><text class="lab" text-anchor="middle"></text></g>`).join('')}</g></svg>`;
+  profMap={L,T,w,h,tMax,dMax,x,y};
+  placeHandles(s.levels,s);
+}
+function placeHandles(Lv,s){
+  if(!profMap)return; const {x,y,tMax,dMax}=profMap; const wp=waypoints(Lv,s);
+  const hs=document.querySelectorAll('#handles .hdl');
+  wp.forEach((p,i)=>{ const g=hs[i]; if(!g)return; const cx=x(Math.min(p.t,tMax)), cy=y(Math.min(p.d,dMax));
+    g.setAttribute('transform',`translate(${cx.toFixed(1)},${cy.toFixed(1)})`);
+    const lab=g.querySelector('.lab'); lab.textContent=`${fmt1(p.d)} m`; lab.setAttribute('y',p.d<2?18:-12);
+    g.setAttribute('aria-valuetext',`${fmt1(p.d)} m à ${Math.round(p.t)} min`); });
+  const up=$('userPath'); if(up) up.setAttribute('d','M'+x(0)+','+y(0)+wp.map(p=>`L${x(Math.min(p.t,tMax)).toFixed(1)},${y(Math.min(p.d,dMax)).toFixed(1)}`).join(''));
+}
+function setPoint(i,T,D){
+  const s=readS(), L=s.levels; if(!L[i])return;
+  const wp=waypoints(L,s), prevT=i?wp[i-1].t:0, from=i?L[i-1].d:0;
+  if(D!=null) L[i].d=Math.max(0,Math.min(100,Math.round(D*2)/2));
+  if(T!=null){ const same=Math.abs(L[i].d-from)<1e-9; L[i].t=Math.max(same?0:1,Math.min(300,Math.round(T-prevT))); }
+  $('lvD'+i).value=L[i].d; $('lvT'+i).value=L[i].t;
+  return L;
+}
+let dragRAF=0;
+(function(){ const box=$('profile');
+  const toSvg=e=>{ const svg=box.querySelector('svg'); const pt=svg.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+  box.addEventListener('pointerdown',e=>{ const g=e.target.closest('.hdl'); if(!g)return; e.preventDefault();
+    drag={i:+g.dataset.h,map:profMap,g}; g.classList.add('on'); try{g.setPointerCapture(e.pointerId);}catch{} g.focus({preventScroll:true}); });
+  box.addEventListener('pointermove',e=>{ if(!drag)return; e.preventDefault();
+    const m=drag.map, p=toSvg(e);
+    const T=Math.max(0,Math.min(m.tMax,(p.x-m.L)/m.w*m.tMax)), D=Math.max(0,Math.min(m.dMax,(p.y-m.T)/m.h*m.dMax));
+    const L=setPoint(drag.i,T,D); if(!L)return; const s=readS(); placeHandles(L,s);
+    if(!dragRAF) dragRAF=requestAnimationFrame(()=>{dragRAF=0; update();}); });
+  const end=()=>{ if(!drag)return; const i=drag.i; drag=null; update(); const g=document.querySelector(`#handles .hdl[data-h="${i}"]`); if(g)g.focus({preventScroll:true}); };
+  box.addEventListener('pointerup',end); box.addEventListener('pointercancel',end);
+  box.addEventListener('keydown',e=>{ const g=e.target.closest('.hdl'); if(!g)return; const i=+g.dataset.h;
+    const s=readS(), wp=waypoints(s.levels,s), p=wp[i]; let T=null,D=null;
+    if(e.key==='ArrowUp')D=p.d-(e.shiftKey?5:1); else if(e.key==='ArrowDown')D=p.d+(e.shiftKey?5:1);
+    else if(e.key==='ArrowLeft')T=p.t-(e.shiftKey?5:1); else if(e.key==='ArrowRight')T=p.t+(e.shiftKey?5:1); else return;
+    e.preventDefault(); setPoint(i,T,D); update(); const ng=document.querySelector(`#handles .hdl[data-h="${i}"]`); if(ng)ng.focus({preventScroll:true}); });
+})();
+function drawTissues(v,gfHi){
+  const W=640,H=160,L=40,R=10,T=12,B=26,w=W-L-R,h=H-T-B, yMax=Math.max(120,Math.ceil(Math.max(...v)/20)*20);
+  const y=p=>T+h-Math.max(0,p)/yMax*h, bw=w/16;
+  let g=''; for(let p=0;p<=yMax;p+=40) g+=`<line x1="${L}" x2="${W-R}" y1="${y(p)}" y2="${y(p)}" stroke="var(--line)"/><text x="${L-6}" y="${y(p)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${p}%</text>`;
+  let bars=''; v.forEach((p,i)=>{const c=p>gfHi?'var(--crit)':p>gfHi*0.8?'var(--warn)':'var(--accent)'; const yy=y(p);
+    bars+=`<rect x="${(L+i*bw+bw*0.18).toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw*0.64).toFixed(1)}" height="${(T+h-yy).toFixed(1)}" rx="2" fill="${c}"/><text x="${(L+i*bw+bw/2).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${i+1}</text>`;});
+  $('tissues').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Saturation des compartiments">${g}${bars}
+    <line x1="${L}" x2="${W-R}" y1="${y(gfHi)}" y2="${y(gfHi)}" stroke="var(--crit)" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="${W-R-2}" y="${y(gfHi)-5}" text-anchor="end" font-size="11" fill="var(--crit)">GF ${gfHi} %</text></svg>`;
+}
+
+function renderDesat(ds,start,run,s){
+  const surf=new Date((isNaN(start)?Date.now():start.getTime())+run*60000);
+  const at=m=>new Date(surf.getTime()+m*60000).toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  const dur=m=>m>=60?`${Math.floor(m/60)}<small>h</small> ${pad(Math.round(m%60))}<small>min</small>`:`${Math.round(m)}<small>min</small>`;
+  $('desat').innerHTML=`<div><div class="k">Plus de sursaturation</div><div class="v num">${dur(ds.clear)}</div><div class="w">${ds.clear?at(ds.clear):'dès la sortie'}</div></div>
+    <div><div class="k">Azote éliminé</div><div class="v num">${dur(ds.full)}</div><div class="w">${ds.full?at(ds.full):'dès la sortie'}</div></div>`;
+  // chart: excess inert gas (% of value at surfacing) + max supersaturation
+  const W=640,H=170,L=40,R=12,T=12,B=26,w=W-L-R,h=H-T-B, c=ds.curve, tMax=c[c.length-1][0]||60;
+  const x=m=>L+m/tMax*w, y=p=>T+h-Math.max(0,Math.min(100,p))/100*h;
+  const gfMax=Math.max(1,...c.map(p=>p[2])), y2=v=>T+h-Math.max(0,v)/Math.max(100,gfMax)*h;
+  let g=''; for(let p=0;p<=100;p+=25) g+=`<line x1="${L}" x2="${W-R}" y1="${y(p)}" y2="${y(p)}" stroke="var(--line)"/><text x="${L-6}" y="${y(p)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${p}%</text>`;
+  const hs=tMax/60, step=hs>48?12:hs>24?6:hs>8?2:hs>2?1:0.5;
+  for(let hh=0;hh*60<=tMax+1e-6;hh+=step) g+=`<text x="${x(hh*60)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${hh}h</text>`;
+  const line=c.map(([m,p],i)=>`${i?'L':'M'}${x(m).toFixed(1)},${y(p).toFixed(1)}`).join('');
+  const gl=c.map(([m,,v],i)=>`${i?'L':'M'}${x(m).toFixed(1)},${y2(v).toFixed(1)}`).join('');
+  const mk=(m,lab,col)=>m>0&&m<=tMax?`<line x1="${x(m)}" x2="${x(m)}" y1="${T}" y2="${T+h}" stroke="${col}" stroke-dasharray="3 3"/><text x="${x(m)+4}" y="${T+11}" font-size="11" fill="${col}">${lab}</text>`:'';
+  $('desatChart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Élimination de l'azote">${g}
+    <path d="${line}L${x(tMax)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--accent-soft)"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <path d="${gl}" fill="none" stroke="var(--warn)" stroke-width="1.5"/>
+    ${mk(ds.clear,'sursaturation 0','var(--warn)')}${mk(ds.full,'azote éliminé','var(--accent)')}
+    <line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)"/></svg>`;
+  const slow=ds.slow>=0?`compartiment ${ds.slow+1} (demi-période ${N2HT[ds.slow]} min)`:'';
+  $('desatNote').innerHTML=`Azote éliminé = tous les compartiments revenus à 99 % de l'équilibre avec l'air en surface${slow?`, le dernier étant le <b>${slow}</b>`:''}. Calcul à partir de la sortie de l'eau, respiration d'air en surface. Votre Shearwater affiche un « Desat » selon sa propre convention : les deux valeurs peuvent différer.`;
+}
+
+/* ---------------- NDL table ---------------- */
+function renderNdl(){
+  if(!last)return; const {s,E,res}=last;
+  const gases=[['Air',21,0],['EAN32',32,0],['EAN36',36,0]];
+  const mine=gasName(s.o2,s.he); if(!gases.some(([,o,h])=>o===s.o2&&h===s.he)) gases.push([mine,s.o2,s.he]);
+  const oi=$('ndlO2'); if(oi.value==='') oi.value=lsGet('bz-ndl-o2')??32;
+  const cO2=Math.min(40,Math.max(21,Math.round(+oi.value)||32));
+  gases.push([`EAN${cO2}`,cO2,0,true]);
+  $('ndlO2Hint').textContent=`MOD ${fmt1(s.ppo2)} bar : ${Math.floor(Math.max(0,(s.ppo2/(cO2/100)-E.P0)*E.mpb))} m · MOD 1,6 : ${Math.floor(Math.max(0,(1.6/(cO2/100)-E.P0)*E.mpb))} m`;
+  const depths=[9,12,15,18,21,24,27,30,33,36,40,45,50];
+  const near=depths.reduce((a,b)=>Math.abs(b-s.depth)<Math.abs(a-s.depth)?b:a);
+  let h=`<thead><tr><th>Prof.</th>${gases.map(([n,,,m])=>`<th class="r${m?' mine':''}">${m?'Mon ':''}${n}</th>`).join('')}</tr></thead><tbody>`;
+  for(const d of depths){ h+=`<tr class="${d===near?'hit':''}"><td>${d} m</td>`;
+    for(const [,o,he,m] of gases){ const g=gasOf(o,he); const po2=E.pa(d)*g.o2; const mc=m?' mine':'';
+      if(po2>s.ppo2+1e-9){h+=`<td class="r mod${mc}">—</td>`;continue;}
+      const n=ndlAt(s,E,res.t,d,g); h+=`<td class="r v ${n<10?'low':''}${mc}">${n===Infinity?'>240':n}</td>`; }
+    h+='</tr>'; }
+  $('ndlTbl').innerHTML=h+'</tbody>';
+  if(!renderNdl._b){ renderNdl._b=1; oi.addEventListener('input',()=>{ const v=+oi.value; if(v>=21&&v<=40){ lsSet('bz-ndl-o2',Math.round(v)); renderNdl(); } }); }
+  $('ndlCtx').textContent=`GF ${s.gfLo}/${s.gfHi} · ${s.water==='fresh'?'eau douce':'eau de mer'}${s.alt?` · ${s.alt} m d'altitude`:''} · descente ${s.desc} m/min · PO₂ max ${fmt1(s.ppo2)} bar · plongée du ${new Date(toDate(s.date,s.time)).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} à ${s.time}${res.used.length?` · ${res.used.length} plongée(s) résiduelle(s)`:''}`;
+}
+
+
+/* ---------------- liaison avec le carnet Bonaire ---------------- */
+const BZ=window.BONAIRE;
+let dives=[], loadedId=null, diveMeta={noTime:0,noData:0};
+function parseGaz(g){ if(!g) return [21,0]; const s=String(g).toLowerCase(); if(s.startsWith('air')) return [21,0];
+  const m=s.match(/(\d{1,3})(?:\s*\/\s*(\d{1,2}))?/); return m?[+m[1],m[2]?+m[2]:0]:[21,0]; }
+function gazLabel(o2,he){ if(he>0) return `Trimix ${o2}/${he}`; if(o2===21) return 'Air'; return `Nitrox ${o2}`; }
+function normOne(d,tm){ const [o2,he]=d.o2!=null?[+d.o2,+(d.he||0)]:parseGaz(d.gaz);
+  return {id:d.id,date:d.date,time:tm?tm.time:(d.heure||'10:00'),assumed:tm?tm.assumed:!d.heure,depth:+d.prof||0,duration:+d.duree||0,o2,he,profile:d.profile,site:d.site}; }
+function syncDives(){
+  if(!BZ){dives=[];return;}
+  const raw=BZ.dives(), TM=BZ.times(raw); let noTime=0,noData=0; const out=[];
+  for(const d of raw){ if(!d.date) continue; const tm=TM.get(d.id); if(tm&&tm.assumed) noTime++;
+    if(!(+d.prof>0&&+d.duree>0)){noData++;continue;} out.push(normOne(d,tm)); }
+  dives=out; diveMeta={noTime,noData};
+}
+const siteName=id=>BZ&&BZ.siteName(id)||id||'Site';
+// liste des sites de la carte
+(function(){ const sel=$('pSite'); if(!BZ) return; const zones={};
+  BZ.sites.forEach(([id,name,,,zone])=>(zones[zone]??=[]).push([id,name]));
+  for(const z in zones){ const og=document.createElement('optgroup'); og.label=z;
+    zones[z].forEach(([id,name])=>{const o=document.createElement('option');o.value=id;o.textContent=name;og.append(o);}); sel.append(og); } })();
+$('pWater').value='salt'; $('pAlt').value=0;
+
+// note sur les plongées successives (remplace le texte générique)
+const _compute=compute;
+compute=function(s){
+  syncDives(); _compute(s);
+  const {res,r}=last; const nofly=r.deco?24:(res.used.length?18:12);
+  let html='';
+  if(res.used.length){
+    const recent=res.used.slice(-3).map(u=>`<b>${esc(siteName(u.d.site))}</b> (${new Date(u.d.ts).toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}${u.d.assumed?', heure supposée':''})`).join(', ');
+    html+=`Plongée successive : <b>${res.used.length}</b> plongée${res.used.length>1?'s':''} du carnet dans les 48 h précédentes, dont ${recent}. Intervalle surface depuis la dernière sortie : <b>${hm(res.lastSI)}</b>. `;
+  }else html+=`Aucune plongée du carnet dans les 48 h précédentes : tissus à l'équilibre avec l'air. `;
+  if(diveMeta.noTime) html+=`<span style="color:var(--warn)">${diveMeta.noTime} plongée${diveMeta.noTime>1?'s':''} sans heure dans le carnet : heure supposée (10 h, puis +4 h pour les suivantes du même jour). Renseignez l'heure pour un calcul exact.</span> `;
+  if(diveMeta.noData) html+=`${diveMeta.noData} plongée${diveMeta.noData>1?'s':''} sans profondeur ou durée ignorée${diveMeta.noData>1?'s':''}. `;
+  html+=`Avion : attendre au moins <b>${nofly} h</b> après la sortie (recommandation DAN).`;
+  $('residNote').innerHTML=html;
+  const ro=BZ&&BZ.readonly();
+  $('addFromPlan').hidden=!!ro; $('updFromPlan').hidden=ro||!loadedId; $('unloadPlan').hidden=!loadedId;
+  $('addHint').textContent=ro?'Carnet en lecture seule.':loadedId?`Plongée chargée depuis le carnet : ${siteName((BZ.dives().find(d=>d.id===loadedId)||{}).site)}.`:(s.site?'':'Choisissez un site pour enregistrer la plongée.');
+};
+// la plongée simulée ne compte pas dans sa propre charge résiduelle
+const _residual=residual;
+residual=function(s,E,startDate){ return _residual(s,E,startDate,loadedId); };
+
+function planFields(){
+  const {s,r}=last; const start=toDate(s.date,s.time);
+  return {site:s.site,statut:start.getTime()>Date.now()?'prevue':'faite',date:s.date||null,heure:s.time||null,
+    gaz:gazLabel(s.o2,s.he),o2:s.o2,he:s.he,prof:s.depth,duree:Math.ceil(r.run),profile:s.levels.map(l=>({d:l.d,t:l.t})),maj:new Date().toISOString()};
+}
+$('addFromPlan').addEventListener('click',async()=>{
+  if(!last||!BZ) return; const f=planFields(); if(!f.site){toast('Choisissez un site');$('pSite').focus();return;}
+  const prev=BZ.dives().filter(d=>d.statut==='faite').sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0]||{};
+  const {s,r}=last;
+  const obj={...f,temp:prev.temp??null,lestChris:prev.lestChris??null,lestVero:prev.lestVero??null,
+    notes:`Planifiée : GF ${s.gfLo}/${s.gfHi}, ${r.deco?`paliers ${r.stops.map(([dd,w])=>`${dd} m ${w}'`).join(' / ')}`:'sans palier'}.`};
+  const id='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  try{ await BZ.save(id,obj); loadedId=id; toast('Ajoutée au carnet'); update(); }catch{ toast('Enregistrement impossible.'); }
+});
+$('updFromPlan').addEventListener('click',async()=>{
+  if(!last||!BZ||!loadedId) return; const o=BZ.dives().find(d=>d.id===loadedId); if(!o){loadedId=null;update();return;}
+  const {id,...rest}=o; const f=planFields(); if(!f.site) f.site=rest.site;
+  try{ await BZ.save(loadedId,{...rest,...f}); toast('Plongée mise à jour'); }catch{ toast('Enregistrement impossible.'); }
+});
+$('unloadPlan').addEventListener('click',()=>{ loadedId=null; const t=new Date(); t.setMinutes(0,0,0); t.setHours(t.getHours()+1);
+  $('pDate').value=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`; $('pTime').value=`${pad(t.getHours())}:00`; update(); });
+
+// ouvrir une plongée (ou un site) du carnet dans le planificateur
+function loadIntoPlanner(d){
+  d=d||{}; loadedId=d.id||null;
+  if(d.date){ const raw=BZ.dives(); const list=d.id&&raw.some(x=>x.id===d.id)?raw.map(x=>x.id===d.id?{...x,...d}:x):[...raw,{...d,id:d.id||'__sim'}];
+    const tm=BZ.times(list).get(d.id||'__sim'); const n=normOne({...d,id:d.id||'__sim'},tm);
+    $('pDate').value=n.date; $('pTime').value=n.time||'10:00'; $('pO2').value=n.o2; $('pHe').value=n.he;
+    if(n.depth>0&&n.duration>0) renderLevels(logLevels(n,readS()).map(l=>({d:Math.round(l.d*10)/10,t:Math.round(l.t)})).slice(0,MAXSEG)); }
+  if(d.site) $('pSite').value=d.site;
+  showView('plan'); update(); window.scrollTo({top:0,behavior:'smooth'});
+}
+if(BZ){ BZ.plan=loadIntoPlanner; BZ.listeners.push(()=>{ if(loadedId&&!BZ.dives().some(d=>d.id===loadedId)) loadedId=null; update(); }); }
+
+/* ---------------- paramètres repliables ---------------- */
+(function(){ const d=$('params'); const st=lsGet('bz-params-open'); d.open=st===true;
+  d.addEventListener('toggle',()=>lsSet('bz-params-open',d.open)); })();
+function paramRecap(s){ $('paramSum').textContent=[gasName(s.o2,s.he)+` · PO₂ ${fmt1(s.ppo2)}`,`GF ${s.gfLo}/${s.gfHi}`,
+  s.sacU==='bar'?`${fmt1(s.sac)} bar/min`:`${fmt1(s.sac)} l/min`,`${s.tank} l · ${s.fill} bar`,s.water==='fresh'?'eau douce':null,s.alt?`${s.alt} m alt.`:null].filter(Boolean).join(' · '); }
+const _compute2=compute; compute=function(s){ _compute2(s); paramRecap(s); };
+
+
+/* ---------------- météo (AccuWeather) ---------------- */
+const AW={server:'AccuWeather®',key:'12309',args:{queryParams:{locationKey:'12309',unit:'metric',lang:'fr'}}};
+const WX={now:null,hours:null,days:null};
+function wxIcon(code,night){
+  code=+code||0; let k='sun';
+  if([1,2,30].includes(code)) k='sun'; else if([3,4,5,6].includes(code)) k='part'; else if([7,8,38].includes(code)) k='cloud';
+  else if(code===11) k='fog'; else if([12,13,14,39,40,18].includes(code)) k='rain'; else if([15,16,17,41,42].includes(code)) k='storm';
+  else if(code===32) k='wind'; else if([33,34].includes(code)) k='moon'; else if([35,36,37].includes(code)) k='moonpart';
+  const sun='<circle cx="16" cy="16" r="6" fill="var(--amber)"/><g stroke="var(--amber)" stroke-width="2" stroke-linecap="round"><path d="M16 3v3M16 26v3M3 16h3M26 16h3M6.8 6.8l2.1 2.1M23.1 23.1l2.1 2.1M6.8 25.2l2.1-2.1M23.1 8.9l2.1-2.1"/></g>';
+  const cl=(x,y,c)=>`<path d="M${x} ${y}h14a5 5 0 0 0 0-10a7 7 0 0 0-13.4 2A4 4 0 0 0 ${x} ${y}z" fill="${c}" stroke="var(--muted)" stroke-width="1.2"/>`;
+  const moon='<path d="M20 6a10 10 0 1 0 6 16A8 8 0 0 1 20 6z" fill="var(--muted)"/>';
+  const g={sun, part:'<g transform="translate(-4,-5) scale(.8)">'+sun+'</g>'+cl(8,26,'var(--surface)'),
+    cloud:cl(5,24,'var(--surface)'), fog:cl(5,18,'var(--surface)')+'<g stroke="var(--muted)" stroke-width="2" stroke-linecap="round"><path d="M6 23h20M8 27h16"/></g>',
+    rain:cl(5,19,'var(--surface)')+'<g stroke="var(--done)" stroke-width="2" stroke-linecap="round"><path d="M10 23l-2 5M16 23l-2 5M22 23l-2 5"/></g>',
+    storm:cl(5,18,'var(--surface)')+'<path d="M17 19l-5 7h4l-2 5 6-8h-4l2-4z" fill="var(--amber)"/>',
+    wind:'<g stroke="var(--muted)" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M4 12h16a4 4 0 1 0-4-4M4 18h22a4 4 0 1 1-4 4M4 24h10"/></g>',
+    moon, moonpart:'<g transform="translate(-3,-4) scale(.8)">'+moon+'</g>'+cl(8,26,'var(--surface)')};
+  return `<svg viewBox="0 0 32 32" role="img" aria-hidden="true">${g[k]||g.cloud}</svg>`;
+}
+const wxErrText=e=>{ switch(e&&e.code){
+  case 'server_not_connected': case 'server_not_found': case 'selection_required': return 'Connecteur AccuWeather non disponible : ajoutez-le dans claude.ai › Paramètres › Connecteurs.';
+  case 'needs_reauth': return 'Reconnectez AccuWeather dans claude.ai › Paramètres › Connecteurs.';
+  case 'not_in_manifest': case 'approval_required': return 'AccuWeather n\'est pas autorisé pour cette page. Autorisez-le depuis le menu Autorisations de la page.';
+  case 'blocked_by_policy': return 'AccuWeather est bloqué par votre organisation.';
+  case 'server_unavailable': case 'rate_limited': return 'AccuWeather ne répond pas pour le moment. Nouvel essai automatique.';
+  case 'tool_error': return 'AccuWeather a renvoyé une erreur : '+(e.message||'');
+  default: return 'Météo indisponible pour le moment.'; } };
+const wxDenied=e=>['needs_reauth','server_not_connected','blocked_by_policy','approval_required','not_in_manifest','server_not_found','selection_required'].includes(e&&e.code);
+const stamp=r=>{ const t=r&&r.cache&&r.cache.storedAt?new Date(r.cache.storedAt):new Date(); return 'Mis à jour à '+pad(t.getHours())+':'+pad(t.getMinutes())+' (votre heure)'; };
+
+function renderNow(){
+  const c=WX.now&&WX.now.currentConditions; if(!c) return;
+  const x=c.extended||{}, loc=WX.now.location||{};
+  $('nwIcon').innerHTML=wxIcon(c.iconCode,!c.isDayTime);
+  $('nwTemp').textContent=c.temperature||'--°';
+  $('nwPhrase').textContent=`${c.phrase||''} · ressenti ${c.realFeel||'--'}`;
+  const item=(k,v)=>v?`<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`:'';
+  $('nwGrid').innerHTML=item('Vent',x.wind)+item('Rafales',x.gusts)+item('Humidité',x.humidity)+item('UV',x.uv?`${x.uv.value} · ${x.uv.category}`:'')+
+    item('Pluie 24 h',x.precipSummary&&x.precipSummary.past24Hours)+item('Pression',x.pressure)+item('Visibilité',x.visibility)+item('Nuages',x.cloudCover)+item('Heure locale',loc.localTime?loc.localTime+' AST':'');
+  const al=(WX.now.alerts||[]).length?` · ⚠ ${WX.now.alerts.length} alerte(s) en cours`:'';
+  $('nwState').className='wx-state'; $('nwState').textContent=stamp(WX.nowR)+al;
+}
+function dbzCol(z){ return z>=45?'var(--plan)':z>=35?'var(--amber)':z>=25?'var(--done)':'color-mix(in srgb,var(--done) 55%,transparent)'; }
+function renderRadar(){
+  const M=WX.radar&&WX.radar.minuteCastForecast; if(!M) return;
+  const mins=M.minutes||[];
+  $('rdSum').textContent=M.summary60||M.summary120||'—';
+  const W=640,H=120,L=34,R=8,T=8,B=22,w=W-L-R,h=H-T-B,n=Math.max(1,mins.length),bw=w/n,zMax=60;
+  const y=z=>T+h-Math.min(zMax,Math.max(0,z))/zMax*h;
+  let g='';
+  [[20,'faible'],[35,'mod.'],[50,'fort']].forEach(([z,l])=>{ g+=`<line x1="${L}" x2="${W-R}" y1="${y(z)}" y2="${y(z)}" stroke="var(--line)"/><text x="${L-4}" y="${y(z)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${l}</text>`; });
+  mins.forEach((m,i)=>{ const z=+m.dbz||0; if(z>0) g+=`<rect x="${(L+i*bw+0.5).toFixed(1)}" y="${y(z).toFixed(1)}" width="${Math.max(1,bw-1).toFixed(1)}" height="${(T+h-y(z)).toFixed(1)}" fill="${dbzCol(z)}"><title>${esc(m.displayTime)} · ${esc(m.phrase)} (${z} dBZ)</title></rect>`;
+    if(i%15===0) g+=`<text x="${(L+i*bw).toFixed(1)}" y="${H-6}" font-size="10" fill="var(--muted)">${esc(m.displayTime)}</text>`; });
+  if(!mins.some(m=>+m.dbz>0)) g+=`<text x="${L+w/2}" y="${T+h/2+4}" text-anchor="middle" font-size="12" fill="var(--muted)">Aucune pluie prévue</text>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${T+h}" y2="${T+h}" stroke="var(--muted)"/>`;
+  $('rdChart').innerHTML=`<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  $('rdState').className='wx-state'; $('rdState').textContent=stamp(WX.radarR)+' · prévision par pas de 15 min';
+}
+function renderHours(){
+  const H=WX.hours&&WX.hours.hourlyForecast; if(!H) return;
+  $('hrList').innerHTML=H.map(h=>{ const x=h.extended||{}, rp=parseInt(h.precip)||0, ts=parseInt(x.thunderstormProbability)||0;
+    return `<div class="wx-h ${h.isDayLight?'':'night'}"><span class="t">${esc(h.dateTime)}</span><span class="wx-ico" aria-hidden="true">${wxIcon(h.icon)}</span>
+      <span class="v">${esc(h.temperature)}</span><span class="p ${rp>=50?'hi':''}">${rp} %</span>${ts>=10?`<span class="st">⚡ ${ts} %</span>`:''}<span class="w">${esc(x.windDirection||'')} ${x.windValue??''}</span></div>`; }).join('');
+  const sr=H.find(h=>h.sunRise), ss=H.find(h=>h.sunSet);
+  $('hrMeta').textContent=`${H.length} prochaines heures · vent en km/h`+(sr?` · lever ${sr.sunRise}`:'')+(ss?` · coucher ${ss.sunSet}`:'');
+  $('hrState').className='wx-state'; $('hrState').textContent=stamp(WX.hoursR);
+}
+function renderDays(){
+  const D=WX.days&&WX.days.dailyForecast; if(!D) return;
+  $('dyList').innerHTML=D.map((d,i)=>{ const dy=d.day||{}, nt=d.night||{}, x=dy.extended||{}, rp=Math.max(dy.rainProbabilityValue||0,nt.rainProbabilityValue||0);
+    const mm=((x.rainValue||0)+((nt.extended||{}).rainValue||0)), ts=Math.max(parseInt(x.thunderstormProbability)||0,parseInt((nt.extended||{}).thunderstormProbability)||0);
+    return `<div class="wx-d"><span class="dn">${i===0?'Auj.':esc(d.dayOfWeek)}<small>${esc(d.displayDate)}</small></span>
+      <span class="wx-ico" aria-hidden="true">${wxIcon(dy.icon)}</span>
+      <span class="ph">${esc(dy.phrase||'')}<small>Vent ${esc(x.wind||'')} · rafales ${esc(x.gusts||'')}${x.uv?` · UV ${x.uv.value}`:''}</small></span>
+      <span class="tp">${esc(dy.displayTemperature||'')}<i>/ ${esc(nt.displayTemperature||'')}</i></span>
+      <span class="rn"><b class="${rp>=50?'hi':''}">${rp} %</b><small>${fmt1(mm)} mm${ts>=10?` · ⚡ ${ts} %`:''}</small></span></div>`; }).join('');
+  $('dyMeta').textContent='Max / min · probabilité de pluie jour et nuit';
+  $('dyState').className='wx-state'; $('dyState').textContent=stamp(WX.daysR);
+}
+function renderNext(){
+  const box=$('wxNext'); if(!box) return; if(!BZ){box.innerHTML='';return;}
+  const raw=BZ.dives(), TM=BZ.times(raw), now=Date.now();
+  const up=raw.filter(d=>d.statut==='prevue'&&TM.has(d.id)&&TM.get(d.id).ts>now-3*3600e3).sort((a,b)=>TM.get(a.id).ts-TM.get(b.id).ts).slice(0,6);
+  if(!up.length){ box.innerHTML='<p class="wx-note">Aucune plongée à venir dans le carnet. Ajoutez-en une depuis la carte pour voir ici la météo prévue ce jour-là.</p>'; return; }
+  const D=(WX.days&&WX.days.dailyForecast)||[], H=(WX.hours&&WX.hours.hourlyForecast)||[];
+  box.innerHTML=up.map(d=>{ const tm=TM.get(d.id);
+    const when=new Date(tm.ts).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+' · '+tm.time.replace(':',' h ')+(tm.assumed?' (?)':'');
+    const hr=H.find(h=>{const t=Date.parse(h.date); return Math.abs(t-tm.ts)<45*60000;});
+    const dy=D.find(x=>(x.date||'').slice(0,10)===d.date);
+    let ico='', f='<span class="s">Prévision disponible à J-10</span>';
+    if(hr){ const x=hr.extended||{}; ico=wxIcon(hr.icon); f=`<b>${esc(hr.temperature)}</b><br>${esc(hr.phrase)} · pluie ${esc(hr.precip)}<br>vent ${esc(x.wind||'')}`; }
+    else if(dy){ const a=dy.day||{}, x=a.extended||{}; ico=wxIcon(a.icon); f=`<b>${esc(a.displayTemperature||'')}</b><br>${esc(a.phrase||'')} · pluie ${esc(a.precip||'')}<br>vent ${esc(x.wind||'')}${(parseInt(x.thunderstormProbability)||0)>=10?' · ⚡ '+esc(x.thunderstormProbability):''}`; }
+    const cr=cruisesOn(d.date).filter(c=>c[5]>=1000).map(c=>c[1]);
+    const warn=(cr.length?`<span class="cr">Paquebot en escale : ${esc(cr.join(', '))}</span>`:'')+(d.site==='salt-pier'?'<span class="cr">Vérifier qu\'aucun navire n\'est à quai (MarineTraffic)</span>':'');
+    return `<div class="wx-row"><span class="wx-ico" aria-hidden="true">${ico}</span><span class="t">${esc(siteName(d.site))}</span><span class="s">${when}${warn}</span><span class="f">${f}</span></div>`; }).join('');
+}
+function wxFallback(msg){ ['nwState','hrState','dyState','rdState'].forEach(id=>{ $(id).className='wx-state err'; $(id).textContent=msg; });
+  $('nwPhrase').textContent='Météo indisponible'; $('rdSum').textContent='—'; }
+/* Open-Meteo (gratuit, sans clé) converti au format attendu par les vues météo */
+const OM='https://api.open-meteo.com/v1/forecast?latitude=12.15&longitude=-68.27&timezone=America%2FCuracao&wind_speed_unit=kmh&forecast_days=10'
+ +'&current=temperature_2m,apparent_temperature,relative_humidity_2m,is_day,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,uv_index'
+ +'&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day'
+ +'&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max,sunrise,sunset'
+ +'&minutely_15=precipitation';
+const WMO={0:'Ciel dégagé',1:'Plutôt ensoleillé',2:'Partiellement nuageux',3:'Couvert',45:'Brouillard',48:'Brouillard',51:'Bruine légère',53:'Bruine',55:'Bruine dense',56:'Bruine',57:'Bruine',
+  61:'Pluie faible',63:'Pluie',65:'Forte pluie',66:'Pluie',67:'Forte pluie',80:'Averses faibles',81:'Averses',82:'Fortes averses',95:'Orage',96:'Orage avec grêle',99:'Orage avec grêle'};
+const wmoTxt=c=>WMO[c]||(c>=71&&c<=86?'Précipitations':'Nuageux');
+const wmoIcon=(c,day)=>c<=1?(day?1:33):c===2?(day?4:35):c===3?7:c<=48?11:c>=95?15:c>=51?12:7;
+const DIRS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+const dir=d=>d==null?'':DIRS[Math.round(((+d%360)+360)%360/22.5)%16];
+const deg=v=>v==null?'--°':Math.round(v)+'°';
+const kmh=v=>v==null?'':Math.round(v)+' km/h';
+const uvCat=u=>u<3?'faible':u<6?'modéré':u<8?'élevé':u<11?'très élevé':'extrême';
+const hhmm=t=>{ const [h,m]=t.slice(11,16).split(':'); return (+h)+' h '+m; };
+function omConvert(j,at){
+  const off=j.utc_offset_seconds||-14400, sign=off<0?'-':'+', a=Math.abs(off);
+  const tz=sign+String(Math.floor(a/3600)).padStart(2,'0')+':'+String(Math.floor(a%3600/60)).padStart(2,'0');
+  const ts=t=>Date.parse(t+':00'+tz), now=Date.now();
+  const c=j.current||{}, H=j.hourly||{}, D=j.daily||{}, M=j.minutely_15||{};
+  const R={cache:{storedAt:at}};
+  WX.now={currentConditions:{iconCode:wmoIcon(c.weather_code,c.is_day),isDayTime:!!c.is_day,temperature:deg(c.temperature_2m),phrase:wmoTxt(c.weather_code),realFeel:deg(c.apparent_temperature),
+    extended:{wind:(dir(c.wind_direction_10m)+' '+kmh(c.wind_speed_10m)).trim(),gusts:kmh(c.wind_gusts_10m),humidity:c.relative_humidity_2m!=null?c.relative_humidity_2m+' %':'',
+      uv:c.uv_index!=null?{value:Math.round(c.uv_index),category:uvCat(c.uv_index)}:null,pressure:c.pressure_msl!=null?Math.round(c.pressure_msl)+' hPa':'',
+      visibility:c.visibility!=null?Math.round(c.visibility/1000)+' km':'',cloudCover:c.cloud_cover!=null?c.cloud_cover+' %':''}},
+    location:{localTime:new Date(now+off*1000).toISOString().slice(11,16)},alerts:[]};
+  WX.nowR=R;
+  // pluie à 2 h (pas de 15 min, converti en dBZ équivalents pour le graphique)
+  const mt=M.time||[]; let i0=mt.findIndex(t=>ts(t)+15*60000>now); if(i0<0) i0=mt.length;
+  const mins=[]; let first=null, rainNow=false;
+  for(let k=i0;k<Math.min(mt.length,i0+8);k++){ const mm=+M.precipitation[k]||0, rate=mm*4, z=rate>0.05?Math.round(10*Math.log10(200*Math.pow(rate,1.6))):0;
+    if(z>0&&first==null) first=mt[k]; if(z>0&&k===i0) rainNow=true;
+    const ph=rate>=10?'Forte pluie':rate>=2.5?'Pluie modérée':rate>0.05?'Pluie faible':'Sec';
+    for(let s=0;s<15;s++){ const t=new Date(ts(mt[k])+s*60000+off*1000).toISOString().slice(11,16); mins.push({displayTime:t,dbz:Math.max(0,z),phrase:ph}); } }
+  const sum=!mins.length?'—':rainNow?'Pluie en cours':first?'Pluie possible vers '+hhmm(first):'Pas de pluie prévue dans les 2 prochaines heures';
+  WX.radar={minuteCastForecast:{summary60:sum,minutes:mins}}; WX.radarR=R;
+  // heure par heure (24 h)
+  const ht=H.time||[]; let h0=ht.findIndex(t=>ts(t)+3600e3>now); if(h0<0) h0=0;
+  const sr={}, ss={}; (D.sunrise||[]).forEach(t=>{ sr[t.slice(0,13)]=hhmm(t); }); (D.sunset||[]).forEach(t=>{ ss[t.slice(0,13)]=hhmm(t); });
+  const hours=[];
+  for(let k=h0;k<Math.min(ht.length,h0+24);k++){ const code=H.weather_code[k], p=H.precipitation_probability[k]??0, t=ht[k];
+    hours.push({dateTime:(+t.slice(11,13))+' h',date:new Date(ts(t)).toISOString(),icon:wmoIcon(code,H.is_day[k]),temperature:deg(H.temperature_2m[k]),precip:p+' %',isDayLight:!!H.is_day[k],phrase:wmoTxt(code),
+      sunRise:sr[t.slice(0,13)],sunSet:ss[t.slice(0,13)],
+      extended:{windDirection:dir(H.wind_direction_10m[k]),windValue:Math.round(H.wind_speed_10m[k]),wind:(dir(H.wind_direction_10m[k])+' '+kmh(H.wind_speed_10m[k])).trim(),thunderstormProbability:code>=95?p+' %':''}}); }
+  WX.hours={hourlyForecast:hours}; WX.hoursR=R;
+  // 10 jours
+  WX.days={dailyForecast:(D.time||[]).map((t,k)=>{ const code=D.weather_code[k], p=D.precipitation_probability_max[k]??0, dt=new Date(t+'T12:00:00');
+    return {date:t,dayOfWeek:dt.toLocaleDateString('fr-FR',{weekday:'short'}),displayDate:dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}),
+      day:{icon:wmoIcon(code,1),phrase:wmoTxt(code),displayTemperature:deg(D.temperature_2m_max[k]),rainProbabilityValue:p,precip:p+' %',
+        extended:{rainValue:+D.precipitation_sum[k]||0,wind:(dir(D.wind_direction_10m_dominant[k])+' '+kmh(D.wind_speed_10m_max[k])).trim(),gusts:kmh(D.wind_gusts_10m_max[k]),
+          uv:D.uv_index_max[k]!=null?{value:Math.round(D.uv_index_max[k])}:null,thunderstormProbability:code>=95?p+' %':''}},
+      night:{displayTemperature:deg(D.temperature_2m_min[k]),rainProbabilityValue:0,extended:{rainValue:0}}}; })};
+  WX.daysR=R;
+}
+let wxBusy=false;
+function wxPaint(){ renderNow(); renderRadar(); renderHours(); renderDays(); renderNext(); }
+async function wxLoad(){ if(wxBusy) return; wxBusy=true;
+  try{ const r=await fetch(OM); if(!r.ok) throw new Error(r.status); const j=await r.json(); const at=Date.now();
+    lsSet('bz-wx',{at,j}); omConvert(j,at); wxPaint(); }
+  catch(e){ const c=lsGet('bz-wx');
+    if(c&&c.j){ omConvert(c.j,c.at); wxPaint(); ['nwState','hrState','dyState'].forEach(id=>{ $(id).textContent+=' · hors ligne, dernière prévision enregistrée'; }); }
+    else { wxFallback('Météo indisponible hors connexion.'); renderNext(); } }
+  finally{ wxBusy=false; } }
+document.addEventListener('click',e=>{ if(e.target.closest('[data-wxretry]')) wxLoad(); });
+wxLoad();
+setInterval(()=>{ if(!document.hidden) wxLoad(); },15*60000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ const t=WX.nowR&&WX.nowR.cache.storedAt; if(!t||Date.now()-t>10*60000) wxLoad(); } });
+window.addEventListener('online',()=>wxLoad());
+
+/* ---------------- paquebots (calendrier relevé) ---------------- */
+// Source : cruisetimetables.com, relevé le 5 nov. 2026. Heures locales Bonaire.
+const CRUISE_SRC={url:'https://www.cruisetimetables.com/kralendijkbonaireschedule-nov2026.html',at:'5 nov. 2026',until:'2026-11-30'};
+const CRUISES=[
+ ['2026-11-05','Royal Clipper','Star Clippers','','',227],['2026-11-07','Carnival Conquest','Carnival','09:00','22:00',2980],
+ ['2026-11-11','Carnival Horizon','Carnival','08:00','20:00',3974],['2026-11-12','Celebrity Silhouette','Celebrity','07:00','16:00',2852],
+ ['2026-11-14','Zuiderdam','Holland America','12:00','23:00',1964],['2026-11-16','Grandeur of the Seas','Royal Caribbean','10:00','18:00',1950],
+ ['2026-11-17','AIDAbella','AIDA','10:00','22:00',2030],['2026-11-20','Seven Seas Splendor','Regent Seven Seas','08:00','16:00',750],
+ ['2026-11-21','Mein Schiff 5','TUI Cruises','07:30','19:00',2534],['2026-11-22','Royal Clipper','Star Clippers','','',227],
+ ['2026-11-23','Nieuw Amsterdam','Holland America','10:00','21:00',2106],['2026-11-24','Renaissance','Ambassador','14:00','23:00',1358],
+ ['2026-11-25','Carnival Horizon','Carnival','08:00','20:00',3974],['2026-11-26','Celebrity Silhouette','Celebrity','07:00','16:00',2852],
+ ['2026-11-28','Wind Star','Windstar','13:00','22:00',148],['2026-11-29','AIDAperla','AIDA','08:00','18:00',3286],['2026-11-30','AIDAluna','AIDA','08:00','18:00',2050]];
+const crowd=n=>n>=2500?['hi','Forte affluence']:n>=1000?['mid','Affluence moyenne']:['lo','Peu de monde'];
+const bqToday=()=>new Date(Date.now()-4*3600e3).toISOString().slice(0,10);
+const cruisesOn=d=>CRUISES.filter(c=>c[0]===d);
+function renderPort(){
+  const box=$('ptList'); if(!box) return;
+  const t=bqToday(), end=new Date(Date.parse(t+'T12:00:00Z')+14*864e5).toISOString().slice(0,10);
+  const list=CRUISES.filter(c=>c[0]>=t&&c[0]<=end);
+  $('ptMeta').textContent='14 prochains jours · heures de Bonaire';
+  box.innerHTML=list.length?list.map(c=>{ const [lv,lb]=crowd(c[5]); const dt=new Date(c[0]+'T12:00:00');
+    return `<div class="pt-row ${c[0]===t?'today':''}"><span class="d">${c[0]===t?'Auj.':esc(dt.toLocaleDateString('fr-FR',{weekday:'short'}))}<small>${esc(dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}))}</small></span>
+      <span class="n">${esc(c[1])}<small>${esc(c[2])} · ${c[3]?esc(c[3].replace(':',' h '))+' – '+esc(c[4].replace(':',' h ')):'horaires non publiés'} · ${c[5].toLocaleString('fr-FR')} passagers</small></span>
+      <span class="pt-chip ${lv}">${lb}</span></div>`; }).join('')
+    :`<p class="wx-note">${t>CRUISE_SRC.until?'Le calendrier enregistré est terminé.':'Aucun paquebot annoncé sur les 14 prochains jours.'}</p>`;
+  $('ptNote').innerHTML=`Calendrier relevé le ${CRUISE_SRC.at} sur <a href="${CRUISE_SRC.url}" target="_blank" rel="noopener">cruisetimetables.com</a>, jusqu'au 30 nov. Les escales peuvent changer : jours de forte affluence, privilégiez les sites loin de Kralendijk.`;
+}
+renderPort();
+
+function renderMeteo(){ renderNext(); renderPort(); }
+if(BZ) BZ.listeners.push(()=>{ renderNext(); });
+
+/* ---------------- vues ---------------- */
+function showView(v){
+  for(const b of document.querySelectorAll('.views button')) b.setAttribute('aria-selected',b.dataset.v===v);
+  $('v-map').hidden=v!=='map'; $('sec-plan').hidden=v!=='plan'; $('sec-ndl').hidden=v!=='ndl'; $('sec-meteo').hidden=v!=='meteo'; $('sec-padi').hidden=v!=='padi';
+  if(v==='meteo') renderMeteo();
+  if(v==='ndl') renderNdl(); lsSet('bz-view',v);
+}
+document.querySelector('.views').addEventListener('click',e=>{const b=e.target.closest('button');if(b)showView(b.dataset.v);});
+
+/* boot */
+chips(); update();
+showView(['map','plan','ndl','meteo','padi'].includes(lsGet('bz-view'))?lsGet('bz-view'):'map');
+
+</script>
+
+<script>
+(() => {
+const $=id=>document.getElementById(id);
+const REQ=[
+ ["owd","Open Water Diver","Niveau 1"],
+ ["aowd","Advanced Open Water Diver","Niveau 2, 5 plongées d'aventure"],
+ ["efr","Emergency First Response","Premiers secours (Primary & Secondary Care), valide 24 mois"],
+ ["rescue","Rescue Diver","Prérequis : AOWD et EFR"],
+ ["medical","Certificat médical","Signé par un médecin, moins de 12 mois"],
+ ["d40","40 plongées enregistrées","Pour commencer le cours Divemaster","auto40"],
+ ["d60","60 plongées enregistrées","Pour obtenir la certification","auto60"],
+ ["dmcourse","Cours Divemaster","Théorie, ateliers de compétences, stage pratique"]
+];
+const SPE=[
+ ["deep","Deep Diver","Jusqu'à 40 m",1],
+ ["nitrox","Enriched Air (Nitrox)","",1],
+ ["nav","Underwater Navigator","Compas et repères naturels",1],
+ ["ppb","Peak Performance Buoyancy","Flottabilité et trim",1],
+ ["search","Search & Recovery","Recherche et relevage d'objets",1],
+ ["o2","Emergency Oxygen Provider","Administration d'oxygène",1],
+ ["night","Night Diver",""],
+ ["wreck","Wreck Diver","Épaves (Hilma Hooker…)"],
+ ["drift","Drift Diver","Plongée en courant"],
+ ["boat","Boat Diver",""],
+ ["photo","Digital Underwater Photographer",""],
+ ["fishid","Fish Identification",""],
+ ["natur","Underwater Naturalist",""],
+ ["coral","AWARE Coral Reef Conservation",""],
+ ["shark","AWARE Shark Conservation",""],
+ ["selfrel","Self-Reliant Diver","Autonomie, bouteille de secours"],
+ ["sidemount","Sidemount Diver",""],
+ ["equip","Equipment Specialist","Entretien et réglages du matériel"],
+ ["dry","Dry Suit Diver",""],
+ ["dpv","Diver Propulsion Vehicle","Scooter sous-marin"],
+ ["ffm","Full Face Mask Diver",""],
+ ["altitude","Altitude Diver","Lacs de montagne"],
+ ["cavern","Cavern Diver",""],
+ ["ice","Ice Diver",""]
+];
+const SNAP={chris:{before:null,items:{}},vero:{before:null,items:{}}};
+let who="chris", data={chris:{items:{}},vero:{items:{}}}, ref=null, ro=true, saving=Promise.resolve();
+try{ const w=localStorage.getItem("bz-padi-who"); if(w==="vero"||w==="chris") who=w; }catch{}
+
+function carnetCount(){ const B=window.BONAIRE; return B? B.dives().filter(d=>d.statut==="faite").length : 0; }
+function total(){ const b=+(data[who]&&data[who].before)||0; return b+carnetCount(); }
+function isOk(key){ const it=(data[who].items||{})[key]; return !!(it&&it.ok); }
+
+function row(key,name,desc,{auto,reco}={}){
+  const it=(data[who].items||{})[key]||{}; let ok=!!it.ok, autoTxt="";
+  if(auto){ const need=auto==="auto40"?40:60, t=total(); ok=t>=need; autoTxt=ok?"atteint":`${t}/${need}`; }
+  const id=`pd-${key}`;
+  const d=document.createElement("div"); d.className="pd-item"+(ok?" ok":"");
+  const cb=document.createElement("input"); cb.type="checkbox"; cb.id=id; cb.checked=ok; cb.disabled=!!auto||ro;
+  const lb=document.createElement("label"); lb.htmlFor=id; lb.textContent=name;
+  if(reco){ const t=document.createElement("span"); t.className="tag"; t.textContent="conseillée"; lb.append(t); }
+  d.append(cb,lb);
+  const when=document.createElement("div"); when.className="when";
+  if(auto){ const a=document.createElement("span"); a.className="pd-auto"; a.textContent=autoTxt; when.append(a); }
+  else if(ok){ const di=document.createElement("input"); di.type="date"; di.id=id+"-date"; di.value=it.date||""; di.disabled=ro; di.setAttribute("aria-label","Date d'obtention "+name);
+    di.addEventListener("change",()=>setItem(key,{...it,ok:true,date:di.value||null}));
+    const nu=document.createElement("input"); nu.type="text"; nu.id=id+"-num"; nu.className="num"; nu.value=it.num||""; nu.placeholder="N° PADI"; nu.maxLength=20; nu.disabled=ro; nu.setAttribute("aria-label","Numéro de certification "+name);
+    nu.addEventListener("change",()=>setItem(key,{...it,ok:true,num:nu.value.trim()||null}));
+    when.append(nu,di); }
+  d.append(when);
+  const extra=[it.instr?"Instructeur "+it.instr:null,it.centre||null].filter(Boolean).join(" · ");
+  const dtxt=ok&&extra?extra:desc;
+  if(dtxt){ const p=document.createElement("span"); p.className="d"; p.textContent=dtxt; d.append(p); }
+  cb.addEventListener("change",()=>setItem(key,cb.checked?{...it,ok:true}:{ok:false}));
+  return d;
+}
+function render(){
+  if(!$("pdReq")) return;
+  document.querySelectorAll("#pdWho .chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.p===who));
+  const r=$("pdReq"); r.replaceChildren(...REQ.map(([k,n,d,a])=>row(k,n,d,{auto:a})));
+  const sp=$("pdSpe"); sp.replaceChildren(...SPE.map(([k,n,d,reco])=>row(k,n,d,{reco:!!reco})));
+  const reqOk=REQ.filter(([k,,,a])=>a?(total()>=(a==="auto40"?40:60)):isOk(k)).length;
+  $("pdReqN").textContent=`${reqOk}/${REQ.length}`; $("pdReqBar").style.width=(reqOk/REQ.length*100)+"%";
+  const speOk=SPE.filter(([k])=>isOk(k)).length;
+  $("pdSpeN").textContent=`${speOk} · Master Scuba Diver ${Math.min(speOk,5)}/5`; $("pdSpeBar").style.width=(Math.min(speOk,5)/5*100)+"%";
+  const bf=$("pdBefore"); if(document.activeElement!==bf) bf.value=data[who].before??""; bf.disabled=ro;
+  $("pdCarnet").textContent=carnetCount(); $("pdTotal").textContent=total();
+}
+async function persist(){
+  if(ro||!ref) return; const doc=ref.doc(who), body=JSON.parse(JSON.stringify(data[who]));
+  saving=saving.then(()=>doc.set(body)).catch(e=>{ $("pdMsg").textContent= e&&e.code==="invalid_argument"?"Lecture seule : vous ne pouvez pas modifier ce parcours.":"Enregistrement impossible. Réessayez dans un instant."; });
+  await saving;
+}
+function setItem(key,val){ if(ro) return; const items={...(data[who].items||{})};
+  if(val.ok) items[key]=val; else delete items[key];
+  data[who]={...data[who],items}; $("pdMsg").textContent=""; render(); persist(); }
+let beforeT=0;
+$("pdBefore").addEventListener("input",e=>{ if(ro) return; const v=e.target.value===""?null:Math.max(0,Math.min(5000,Math.round(+e.target.value)));
+  data[who]={...data[who],before:v}; $("pdCarnet").textContent=carnetCount(); $("pdTotal").textContent=total();
+  clearTimeout(beforeT); beforeT=setTimeout(()=>{render();persist();},700); });
+$("pdWho").addEventListener("click",e=>{ const b=e.target.closest(".chip"); if(!b) return; who=b.dataset.p;
+  try{localStorage.setItem("bz-padi-who",who);}catch{} $("pdMsg").textContent=""; render(); });
+if(window.BONAIRE) window.BONAIRE.listeners.push(()=>{ if(!$("sec-padi").hidden) render(); });
+
+function useSnap(){ ro=true; data=JSON.parse(JSON.stringify(SNAP)); $("pdMsg").textContent="Lecture seule : copie du parcours. Connectez-vous pour cocher."; render(); }
+render();
+(async()=>{
+  let db=null; try{ db=window.claude&&window.claude.use?await window.claude.use("db"):null; }catch{ db=null; }
+  if(!db){ useSnap(); return; }
+  ref=db.collection("padi"); ro=db.role==="lecteur";
+  ref.onSnapshot(snap=>{ const next={chris:{items:{}},vero:{items:{}}};
+      snap.docs.forEach(d=>{ if(d.id in next) next[d.id]={items:{},...d.data()}; });
+      const keepBefore=document.activeElement===$("pdBefore")?data[who].before:undefined;
+      data=next; if(keepBefore!==undefined) data[who].before=keepBefore; render(); },
+    ()=>useSnap());
+})();
+})();
+</script>
+
+</body></html>
