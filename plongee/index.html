@@ -991,8 +991,8 @@ async function delDive(id){
 const $=id=>document.getElementById(id);
 const mapbox=$("mapbox");
 const map=L.map("map",{zoomControl:false,worldCopyJump:true,minZoom:2,maxZoom:18,attributionControl:true}).setView([0,-110],2);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  {subdomains:"abcd",maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'}).addTo(map);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(map);
 L.control.zoom({position:"topright",zoomInTitle:"Zoomer",zoomOutTitle:"Dézoomer"}).addTo(map);
 L.control.scale({imperial:false,position:"bottomright"}).addTo(map);
 map.attributionControl.setPrefix(false);

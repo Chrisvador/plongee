@@ -14,6 +14,6 @@ self.addEventListener('fetch', e => {
   if (u.hostname.endsWith('supabase.co')) return;                       // données : gérées par l'app
   if (u.hostname === 'fonts.googleapis.com' || u.hostname === 'fonts.gstatic.com') { e.respondWith(cacheFirst(req)); return; }
   if (u.hostname === 'cdnjs.cloudflare.com') { e.respondWith(cacheFirst(req)); return; }   // bibliothèque de carte
-  if (u.hostname.endsWith('basemaps.cartocdn.com')) { e.respondWith(cacheFirst(req)); return; }   // fonds de carte : gardés pour le hors ligne
+  if (u.hostname === 'tile.openstreetmap.org') { e.respondWith(cacheFirst(req)); return; }   // fonds de carte : gardés pour le hors ligne
   if (u.hostname === 'api.open-meteo.com' || u.origin === location.origin) { e.respondWith(netFirst(req)); return; }
 });
