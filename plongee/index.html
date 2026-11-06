@@ -345,6 +345,33 @@ svg text{font-family:var(--f-body)}
 .pd-dives .v{font-family:var(--f-display);font-size:28px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
 .pd-dives input{font:15px var(--f-body);padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
 .pd-list{display:flex;flex-direction:column}
+.pd-goals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:520px){.pd-goals{grid-template-columns:minmax(0,1fr)}}
+.pd-g{display:flex;flex-direction:column;gap:10px}
+.pd-g>b{font-family:var(--f-display);font-size:17px}
+.pd-dv{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:8px 14px;align-items:center}
+.pd-dv .h{font:500 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.pd-dv .n{font-weight:700}
+.pd-dv .v{font-family:var(--f-display);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.pd-dv input{font:15px var(--f-body);padding:7px 9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%;max-width:110px}
+.pd-cert{padding:12px 2px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.pd-cert:first-child{border-top:0}
+.pd-cert .nm{font-weight:700}
+.pd-cert .nm .tag{font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--amber);margin-left:6px;white-space:nowrap}
+.pd-cert .d{font-size:13px;color:var(--muted)}
+.pd-ppl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:700px){.pd-ppl{grid-template-columns:minmax(0,1fr)}}
+.pd-p{display:grid;grid-template-columns:22px 70px minmax(0,1fr) minmax(0,1fr);gap:4px 8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 9px}
+.pd-p.ok{border-color:color-mix(in srgb,var(--done) 45%,var(--line))}
+.pd-p input[type=checkbox]{width:20px;height:20px;accent-color:var(--done);margin:0;cursor:pointer}
+.pd-p label{font-weight:700;font-size:14px;cursor:pointer}
+.pd-p.ok label{color:var(--done)}
+.pd-p input.t{font:13px var(--f-body);padding:5px 7px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--fg);width:100%;min-width:0}
+.pd-p input.num{font-family:var(--f-mono);font-size:12px}
+.pd-p .x{grid-column:3/5;font-size:12px;color:var(--muted)}
+.pd-p .pd-auto{grid-column:3/5}
+.pd-p .no{grid-column:3/5;font-size:12px;color:var(--muted)}
+
 .pd-item{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 2px;border-top:1px solid var(--line)}
 .pd-item:first-child{border-top:0}
 .pd-item input[type=checkbox]{width:20px;height:20px;accent-color:var(--done);margin:0;cursor:pointer}
@@ -366,6 +393,9 @@ svg text{font-family:var(--f-body)}
 <style>
 .acct-btn{padding:6px 12px;font-size:13px}
 .bz-only[hidden]{display:none!important}
+.overlay{z-index:2000}
+#auth{z-index:3000}
+.mapbox{isolation:isolate}
 #map{width:100%;height:100%;background:var(--sea);font-family:var(--f-body)}
 .leaflet-container{font-family:var(--f-body)}
 .zonerow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
@@ -713,25 +743,14 @@ html,body{overflow-x:hidden}
 <section id="sec-padi" class="padi" hidden>
   <div class="pd-top">
     <div class="card pd-goal">
-      <div class="pd-who">
-        <div><span class="k">Objectif</span><h3>PADI Divemaster</h3></div>
-        <div class="chips" role="group" aria-label="Plongeur" id="pdWho">
-          <button class="chip" data-p="chris" aria-pressed="true">Chris</button>
-          <button class="chip" data-p="vero" aria-pressed="false">Véro</button>
-        </div>
-      </div>
-      <div class="pd-meter"><div class="lab"><span>Prérequis Divemaster</span><b id="pdReqN">0/0</b></div><div class="pd-bar"><i id="pdReqBar" style="width:0"></i></div></div>
-      <div class="pd-meter"><div class="lab"><span>Spécialités cochées</span><b id="pdSpeN">0</b></div><div class="pd-bar"><i id="pdSpeBar" class="part" style="width:0"></i></div></div>
+      <div><span class="k">Objectif</span><h3>PADI Divemaster</h3></div>
+      <div class="pd-goals" id="pdGoals"></div>
       <p class="pd-msg" id="pdMsg"></p>
     </div>
     <div class="card">
       <span class="k">Plongées enregistrées</span>
-      <div class="pd-dives" style="margin-top:8px">
-        <div class="f"><label for="pdBefore">Avant ce carnet</label><input type="number" id="pdBefore" min="0" max="5000" step="1" inputmode="numeric"></div>
-        <div><span class="k">Ce carnet</span><div class="v" id="pdCarnet">0</div></div>
-        <div><span class="k">Total</span><div class="v" id="pdTotal">0</div></div>
-      </div>
-      <p class="pd-note">Indiquez le nombre de plongées de votre carnet papier ou de Shearwater Cloud avant Bonaire. Les plongées réalisées de ce carnet s'ajoutent automatiquement.</p>
+      <div class="pd-dv" id="pdDives" style="margin-top:8px"></div>
+      <p class="pd-note">« Avant » : plongées du carnet papier ou de Shearwater Cloud avant cette app. Les plongées réalisées du carnet s'ajoutent automatiquement.</p>
     </div>
   </div>
 
@@ -997,7 +1016,16 @@ L.control.zoom({position:"topright",zoomInTitle:"Zoomer",zoomOutTitle:"Dézoomer
 L.control.scale({imperial:false,position:"bottomright"}).addTo(map);
 map.attributionControl.setPrefix(false);
 const gMk=L.layerGroup().addTo(map);
-new ResizeObserver(()=>map.invalidateSize()).observe(mapbox);
+let pendingFit=false;
+function fitZone(anim){
+  if(!mapbox.offsetWidth||!mapbox.offsetHeight){ pendingFit=true; return; }   // carte masquée (autre onglet) : cadrage au retour
+  pendingFit=false; map.invalidateSize();
+  try{ const o={padding:ZONE==="monde"?[30,30]:[16,16],maxZoom:ZONE==="monde"?3:undefined};
+    const b=ZONE==="monde"?allBounds():zoneBounds(zById[ZONE]);
+    if(!b){ map.setView([0,-110],2); return; }
+    if(anim) map.flyToBounds(b,{...o,duration:.8}); else map.fitBounds(b,o); }catch(e){ console.warn(e); }
+}
+new ResizeObserver(()=>{ map.invalidateSize(); if(pendingFit) fitZone(false); }).observe(mapbox);
 
 const ZOOM_SITES=7;
 let selected=null, filter="all";
@@ -1030,6 +1058,7 @@ function drawMarkers(){
         L.marker(gb.getCenter(),{icon:ic,title:g}).on("click",()=>map.flyToBounds(gb.pad(0.6),{maxZoom:14,duration:.8})).addTo(gMk); }
       return; } }
   const showLbl = zm>=13;
+  if(!mapbox.offsetWidth) return;
   const vis=map.getBounds().pad(0.3);
   SITE_LIST.forEach(s=>{
     const st=statusOf(s.id), sel=s.id===selected;
@@ -1095,8 +1124,7 @@ function setZone(id,fly=true){
   const changed=id!==ZONE; ZONE=id; try{localStorage.setItem("cp-zone",id);}catch{}
   if(selected&&ZONE!=="monde"&&zoneOf(selected)!==ZONE) selected=null;
   paintZoneBar();
-  if(fly){ map.closePopup(); if(ZONE==="monde"){ const b=allBounds(); if(b) map.flyToBounds(b,{padding:[30,30],maxZoom:3,duration:.8}); else map.setView([0,-110],2); }
-    else map.flyToBounds(zoneBounds(zById[ZONE]),{padding:[16,16],duration:.8}); }
+  if(fly){ map.closePopup(); fitZone(true); }
   render();
   if(changed) zoneListeners.forEach(f=>{try{f(ZONE==="monde"?null:zById[ZONE]);}catch(e){console.error(e);}});
 }
@@ -1313,9 +1341,7 @@ form.addEventListener("submit",async e=>{
 
 // ---------- Démarrage ----------
 paintZoneBar(); render();
-requestAnimationFrame(()=>{ map.invalidateSize();
-  if(ZONE==="monde"){ const b=allBounds(); if(b) map.fitBounds(b,{padding:[30,30],maxZoom:3}); }
-  else map.fitBounds(zoneBounds(zById[ZONE]),{padding:[16,16]}); });
+requestAnimationFrame(()=>fitZone(false));
 })();
 </script>
 <div class="toast" id="toast" hidden></div>
@@ -2113,62 +2139,75 @@ const SPE=[
  ["ice","Ice Diver",""]
 ];
 const SNAP={chris:{before:null,items:{}},vero:{before:null,items:{}}};
-let who="chris", data={chris:{items:{}},vero:{items:{}}}, ref=null, ro=true, saving=Promise.resolve();
-try{ const w=localStorage.getItem("bz-padi-who"); if(w==="vero"||w==="chris") who=w; }catch{}
+const PEOPLE=[["chris","Christian"],["vero","Véro"]];
+let data={chris:{items:{}},vero:{items:{}}}, ref=null, ro=true, saving=Promise.resolve();
 
 function carnetCount(){ const B=window.BONAIRE; return B? B.dives().filter(d=>d.statut==="faite").length : 0; }
-function total(){ const b=+(data[who]&&data[who].before)||0; return b+carnetCount(); }
-function isOk(key){ const it=(data[who].items||{})[key]; return !!(it&&it.ok); }
+function total(p){ const b=+(data[p]&&data[p].before)||0; return b+carnetCount(); }
+function isOk(p,key){ const it=(data[p].items||{})[key]; return !!(it&&it.ok); }
+const autoOk=(p,a)=>total(p)>=(a==="auto40"?40:60);
 
-function row(key,name,desc,{auto,reco}={}){
-  const it=(data[who].items||{})[key]||{}; let ok=!!it.ok, autoTxt="";
-  if(auto){ const need=auto==="auto40"?40:60, t=total(); ok=t>=need; autoTxt=ok?"atteint":`${t}/${need}`; }
-  const id=`pd-${key}`;
-  const d=document.createElement("div"); d.className="pd-item"+(ok?" ok":"");
+function person(p,label,key,name,auto){
+  const it=(data[p].items||{})[key]||{}; let ok=auto?autoOk(p,auto):!!it.ok;
+  const id=`pd-${key}-${p}`;
+  const d=document.createElement("div"); d.className="pd-p"+(ok?" ok":"");
   const cb=document.createElement("input"); cb.type="checkbox"; cb.id=id; cb.checked=ok; cb.disabled=!!auto||ro;
-  const lb=document.createElement("label"); lb.htmlFor=id; lb.textContent=name;
-  if(reco){ const t=document.createElement("span"); t.className="tag"; t.textContent="conseillée"; lb.append(t); }
+  const lb=document.createElement("label"); lb.htmlFor=id; lb.textContent=label;
   d.append(cb,lb);
-  const when=document.createElement("div"); when.className="when";
-  if(auto){ const a=document.createElement("span"); a.className="pd-auto"; a.textContent=autoTxt; when.append(a); }
-  else if(ok){ const di=document.createElement("input"); di.type="date"; di.id=id+"-date"; di.value=it.date||""; di.disabled=ro; di.setAttribute("aria-label","Date d'obtention "+name);
-    di.addEventListener("change",()=>setItem(key,{...it,ok:true,date:di.value||null}));
-    const nu=document.createElement("input"); nu.type="text"; nu.id=id+"-num"; nu.className="num"; nu.value=it.num||""; nu.placeholder="N° PADI"; nu.maxLength=20; nu.disabled=ro; nu.setAttribute("aria-label","Numéro de certification "+name);
-    nu.addEventListener("change",()=>setItem(key,{...it,ok:true,num:nu.value.trim()||null}));
-    when.append(nu,di); }
-  d.append(when);
-  const extra=[it.instr?"Instructeur "+it.instr:null,it.centre||null].filter(Boolean).join(" · ");
-  const dtxt=ok&&extra?extra:desc;
-  if(dtxt){ const p=document.createElement("span"); p.className="d"; p.textContent=dtxt; d.append(p); }
-  cb.addEventListener("change",()=>setItem(key,cb.checked?{...it,ok:true}:{ok:false}));
+  if(auto){ const a=document.createElement("span"); a.className="pd-auto"; const need=auto==="auto40"?40:60, t=total(p); a.textContent=ok?"atteint":`${t}/${need}`; d.append(a); }
+  else if(ok){
+    const nu=document.createElement("input"); nu.type="text"; nu.className="t num"; nu.value=it.num||""; nu.placeholder="N° PADI"; nu.maxLength=20; nu.disabled=ro; nu.setAttribute("aria-label",`Numéro de certification ${name}, ${label}`);
+    nu.addEventListener("change",()=>setItem(p,key,{...it,ok:true,num:nu.value.trim()||null}));
+    const di=document.createElement("input"); di.type="date"; di.className="t"; di.value=it.date||""; di.disabled=ro; di.setAttribute("aria-label",`Date d'obtention ${name}, ${label}`);
+    di.addEventListener("change",()=>setItem(p,key,{...it,ok:true,date:di.value||null}));
+    d.append(nu,di);
+    const extra=[it.instr?"Instructeur "+it.instr:null,it.centre||null].filter(Boolean).join(" · ");
+    if(extra){ const x=document.createElement("span"); x.className="x"; x.textContent=extra; d.append(x); }
+  } else { const n=document.createElement("span"); n.className="no"; n.textContent="Pas encore"; d.append(n); }
+  cb.addEventListener("change",()=>setItem(p,key,cb.checked?{...it,ok:true}:{ok:false}));
   return d;
 }
+function row(key,name,desc,{auto,reco}={}){
+  const c=document.createElement("div"); c.className="pd-cert";
+  const h=document.createElement("div"); h.className="nm"; h.textContent=name;
+  if(reco){ const t=document.createElement("span"); t.className="tag"; t.textContent="conseillée"; h.append(t); }
+  c.append(h);
+  if(desc){ const p=document.createElement("span"); p.className="d"; p.textContent=desc; c.append(p); }
+  const g=document.createElement("div"); g.className="pd-ppl";
+  PEOPLE.forEach(([p,l])=>g.append(person(p,l,key,name,auto)));
+  c.append(g); return c;
+}
+function meter(lab,n,pct,part){ const m=document.createElement("div"); m.className="pd-meter";
+  m.innerHTML=`<div class="lab"><span>${lab}</span><b>${n}</b></div><div class="pd-bar"><i class="${part?"part":""}" style="width:${pct}%"></i></div>`; return m; }
+let beforeT={};
 function render(){
   if(!$("pdReq")) return;
-  document.querySelectorAll("#pdWho .chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.p===who));
-  const r=$("pdReq"); r.replaceChildren(...REQ.map(([k,n,d,a])=>row(k,n,d,{auto:a})));
-  const sp=$("pdSpe"); sp.replaceChildren(...SPE.map(([k,n,d,reco])=>row(k,n,d,{reco:!!reco})));
-  const reqOk=REQ.filter(([k,,,a])=>a?(total()>=(a==="auto40"?40:60)):isOk(k)).length;
-  $("pdReqN").textContent=`${reqOk}/${REQ.length}`; $("pdReqBar").style.width=(reqOk/REQ.length*100)+"%";
-  const speOk=SPE.filter(([k])=>isOk(k)).length;
-  $("pdSpeN").textContent=`${speOk} · Master Scuba Diver ${Math.min(speOk,5)}/5`; $("pdSpeBar").style.width=(Math.min(speOk,5)/5*100)+"%";
-  const bf=$("pdBefore"); if(document.activeElement!==bf) bf.value=data[who].before??""; bf.disabled=ro;
-  $("pdCarnet").textContent=carnetCount(); $("pdTotal").textContent=total();
+  $("pdReq").replaceChildren(...REQ.map(([k,n,d,a])=>row(k,n,d,{auto:a})));
+  $("pdSpe").replaceChildren(...SPE.map(([k,n,d,reco])=>row(k,n,d,{reco:!!reco})));
+  const goals=$("pdGoals"); goals.replaceChildren();
+  PEOPLE.forEach(([p,l])=>{ const g=document.createElement("div"); g.className="pd-g"; const b=document.createElement("b"); b.textContent=l; g.append(b);
+    const reqOk=REQ.filter(([k,,,a])=>a?autoOk(p,a):isOk(p,k)).length, speOk=SPE.filter(([k])=>isOk(p,k)).length;
+    g.append(meter("Prérequis",`${reqOk}/${REQ.length}`,reqOk/REQ.length*100), meter("Spécialités",`${speOk} · MSD ${Math.min(speOk,5)}/5`,Math.min(speOk,5)/5*100,true));
+    goals.append(g); });
+  const dv=$("pdDives"); const act=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.before:null;
+  if(!act){ dv.replaceChildren();
+    ["","Avant","Carnet","Total"].forEach(t=>{ const s=document.createElement("span"); s.className="h"; s.textContent=t; dv.append(s); });
+    PEOPLE.forEach(([p,l])=>{ const n=document.createElement("span"); n.className="n"; n.textContent=l;
+      const i=document.createElement("input"); i.type="number"; i.min=0; i.max=5000; i.step=1; i.inputMode="numeric"; i.value=data[p].before??""; i.disabled=ro; i.dataset.before=p; i.setAttribute("aria-label",`Plongées avant ce carnet, ${l}`);
+      i.addEventListener("input",e=>{ if(ro) return; const v=e.target.value===""?null:Math.max(0,Math.min(5000,Math.round(+e.target.value)));
+        data[p]={...data[p],before:v}; tt.textContent=total(p); clearTimeout(beforeT[p]); beforeT[p]=setTimeout(()=>{ i.blur(); render(); persist(p); },900); });
+      const c=document.createElement("span"); c.className="v"; c.textContent=carnetCount();
+      const tt=document.createElement("span"); tt.className="v"; tt.textContent=total(p);
+      dv.append(n,i,c,tt); }); }
 }
-async function persist(){
-  if(ro||!ref) return; const doc=ref.doc(who), body=JSON.parse(JSON.stringify(data[who]));
+async function persist(p){
+  if(ro||!ref) return; const doc=ref.doc(p), body=JSON.parse(JSON.stringify(data[p]));
   saving=saving.then(()=>doc.set(body)).catch(e=>{ $("pdMsg").textContent= e&&e.code==="invalid_argument"?"Lecture seule : vous ne pouvez pas modifier ce parcours.":"Enregistrement impossible. Réessayez dans un instant."; });
   await saving;
 }
-function setItem(key,val){ if(ro) return; const items={...(data[who].items||{})};
+function setItem(p,key,val){ if(ro) return; const items={...(data[p].items||{})};
   if(val.ok) items[key]=val; else delete items[key];
-  data[who]={...data[who],items}; $("pdMsg").textContent=""; render(); persist(); }
-let beforeT=0;
-$("pdBefore").addEventListener("input",e=>{ if(ro) return; const v=e.target.value===""?null:Math.max(0,Math.min(5000,Math.round(+e.target.value)));
-  data[who]={...data[who],before:v}; $("pdCarnet").textContent=carnetCount(); $("pdTotal").textContent=total();
-  clearTimeout(beforeT); beforeT=setTimeout(()=>{render();persist();},700); });
-$("pdWho").addEventListener("click",e=>{ const b=e.target.closest(".chip"); if(!b) return; who=b.dataset.p;
-  try{localStorage.setItem("bz-padi-who",who);}catch{} $("pdMsg").textContent=""; render(); });
+  data[p]={...data[p],items}; $("pdMsg").textContent=""; render(); persist(p); }
 if(window.BONAIRE) window.BONAIRE.listeners.push(()=>{ if(!$("sec-padi").hidden) render(); });
 
 function useSnap(){ ro=true; data=JSON.parse(JSON.stringify(SNAP)); $("pdMsg").textContent="Lecture seule : copie du parcours. Connectez-vous pour cocher."; render(); }
@@ -2179,8 +2218,8 @@ render();
   ref=db.collection("padi"); ro=db.role==="lecteur";
   ref.onSnapshot(snap=>{ const next={chris:{items:{}},vero:{items:{}}};
       snap.docs.forEach(d=>{ if(d.id in next) next[d.id]={items:{},...d.data()}; });
-      const keepBefore=document.activeElement===$("pdBefore")?data[who].before:undefined;
-      data=next; if(keepBefore!==undefined) data[who].before=keepBefore; render(); },
+      const act=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.before:null;
+      const keep=act?data[act].before:undefined; data=next; if(act) data[act].before=keep; render(); },
     ()=>useSnap());
 })();
 })();
