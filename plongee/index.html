@@ -365,6 +365,21 @@ svg text{font-family:var(--f-body)}
 
 <style>
 .acct-btn{padding:6px 12px;font-size:13px}
+.mkpop{position:absolute;z-index:4;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(5,20,28,.25);padding:12px;display:flex;flex-direction:column;gap:10px;overflow:auto;-webkit-overflow-scrolling:touch}
+.mkpop[hidden]{display:none!important}
+.mkpop-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.mkpop-hd h4{margin:0;font-family:var(--f-display);font-size:18px;line-height:1.15}
+.mkpop-hd span{font-size:12px;color:var(--muted)}
+.mkpop-x{border:0;background:none;color:var(--muted);font:700 22px/1 var(--f-body);cursor:pointer;padding:0 4px;min-width:32px;min-height:32px}
+.mkpop-list{display:flex;flex-direction:column}
+.mkpop-row{display:flex;flex-direction:column;gap:3px;text-align:left;border:0;border-top:1px solid var(--line);background:none;color:inherit;font:inherit;padding:8px 2px;cursor:pointer;width:100%}
+.mkpop-row:first-child{border-top:0}
+.mkpop-a{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;align-items:baseline}
+.mkpop-a b{font-size:14px}
+.mkpop-a span{font:500 12px var(--f-mono);color:var(--muted)}
+.mkpop-row p{margin:0;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mkpop-empty{margin:0;font-size:14px;color:var(--muted)}
+
 .hdr-right{flex-wrap:wrap;min-width:0;max-width:100%}
 header,.wrap{min-width:0;max-width:100%}
 .views{max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
@@ -922,7 +937,14 @@ svg.addEventListener("pointermove",e=>{
   if(ptrs.size===1){ const dx=e.clientX-p.x, dy=e.clientY-p.y; moved+=Math.abs(dx)+Math.abs(dy); vb.x-=dx/r.width*vb.w; vb.y-=dy/r.height*vb.h; p.x=e.clientX;p.y=e.clientY; svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
   else if(ptrs.size===2&&pinch0){ p.x=e.clientX;p.y=e.clientY; moved+=10; const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); const c=toSvg((a.x+b.x)/2,(a.y+b.y)/2); zoomAt((pinch0.w*pinch0.d/d)/vb.w,...c); }
 });
-const up=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch0=null;if(!ptrs.size){svg.classList.remove("drag");drawMarkers();}};
+function hitMarker(cx,cy){ const r=pad(); let best=null, bd=24;
+  for(const [id,,la,lo] of SITES){ const st=statusOf(id);
+    if(filter==="faite"&&!st.done&&id!==selected) continue; if(filter==="prevue"&&!st.plan&&id!==selected) continue;
+    const [x,y]=px(la,lo); const sx=r.left+(x-vb.x)/vb.w*r.width, sy=r.top+(y-vb.y)/vb.h*r.height; const d=Math.hypot(sx-cx,sy-cy);
+    if(d<bd){ bd=d; best=id; } }
+  return best; }
+const up=e=>{const tap=e.type==="pointerup"&&ptrs.size===1&&moved<8;ptrs.delete(e.pointerId);if(ptrs.size<2)pinch0=null;if(!ptrs.size){svg.classList.remove("drag");
+  const id=tap?hitMarker(e.clientX,e.clientY):null; if(id){ select(id,false); showPop(id,e); } else drawMarkers();}};
 svg.addEventListener("pointerup",up); svg.addEventListener("pointercancel",up);
 new ResizeObserver(()=>apply()).observe(document.getElementById("mapbox"));
 function updScale(){ const r=pad(); if(!r.width)return; const unitPerPx=vb.w/r.width; let km=[0.5,1,2,5,10].find(k=>k*KM/unitPerPx>60)||10; document.getElementById("scalebar").style.width=(km*KM/unitPerPx).toFixed(0)+"px"; document.querySelector("#scale span").textContent=(km<1?km*1000+" m":km+" km"); }
@@ -946,8 +968,8 @@ function drawMarkers(){
     if(st.plan) el("rect",{x:x-w/2-3*s,y:y-h/2-3*s,width:w+6*s,height:h+6*s,rx:5*s,fill:"none",stroke:css("--plan"),"stroke-width":2.2*s},g);
     el("rect",{x:x-w/2,y:y-h/2,width:w,height:h,rx:3*s,fill:st.done?css("--done"):css("--stone"),stroke:st.done?css("--done"):css("--stone-ink"),"stroke-width":(sel?2.2:1.4)*s},g);
     if(st.n>1){const t=el("text",{x,y:y+3.2*s,"text-anchor":"middle","font-size":8.5*s,"font-weight":700,fill:st.done?"#fff":css("--stone-ink")},g);t.textContent=st.n;}
-    const go=ev=>{ if(moved>8) return; ev.stopPropagation(); select(id); };
-    g.addEventListener("click",go); g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();select(id);}});
+    const go=ev=>{ if(moved>8) return; ev.stopPropagation(); select(id,false); showPop(id,ev); };
+    g.addEventListener("click",go); g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();select(id,false);showPop(id,null);}});
     if(showAll||sel){ const t=el("text",{x:x-(w/2+5*s),y:y+3.5*s,"text-anchor":"end","font-size":(sel?12.5:10.5)*s,"font-weight":sel?700:400,fill:css("--fg"),stroke:css("--sea"),"stroke-width":3*s,"paint-order":"stroke"},gLbl); t.textContent=name;
       if(byId[id].zone==="Côte est"){t.setAttribute("text-anchor","start");t.setAttribute("x",x+w/2+5*s);} }
   }
@@ -1010,6 +1032,48 @@ function renderSite(){
 }
 function select(id,scroll=true){ selected=id; renderSite(); drawMarkers();
   if(scroll && window.matchMedia("(max-width:860px)").matches) document.getElementById("sitecard").scrollIntoView({behavior:"smooth",block:"start"}); }
+// ---------- Bulle sur la carte : nom du site + plongées réalisées ----------
+const mapbox=document.getElementById("mapbox");
+const pop=document.createElement("div"); pop.className="mkpop"; pop.hidden=true; pop.setAttribute("role","dialog"); mapbox.append(pop);
+let popId=null, popAt=null;
+function hidePop(){ pop.hidden=true; popId=null; }
+function showPop(id,ev){
+  const s=byId[id]; if(!s) return; popId=id;
+  const box=mapbox.getBoundingClientRect();
+  if(ev&&ev.clientX!=null) popAt=[ev.clientX-box.left, ev.clientY-box.top]; else if(!popAt) popAt=[box.width/2,box.height/2];
+  const done=dives.filter(d=>d.site===id&&d.statut==="faite").sort((a,b)=>((b.date||"")+(b.heure||"")).localeCompare((a.date||"")+(a.heure||"")));
+  const np=dives.filter(d=>d.site===id&&d.statut!=="faite").length;
+  pop.replaceChildren();
+  const hd=document.createElement("div"); hd.className="mkpop-hd";
+  const tt=document.createElement("div"); const h=document.createElement("h4"); h.textContent=s.name;
+  const z=document.createElement("span"); z.textContent=s.zone+" · "+(done.length?done.length+" plongée"+(done.length>1?"s":"")+" réalisée"+(done.length>1?"s":""):"jamais plongé")+(np?" · "+np+" à venir":"");
+  tt.append(h,z);
+  const x=document.createElement("button"); x.type="button"; x.className="mkpop-x"; x.setAttribute("aria-label","Fermer"); x.textContent="×"; x.onclick=hidePop;
+  hd.append(tt,x); pop.append(hd);
+  if(done.length){ const l=document.createElement("div"); l.className="mkpop-list";
+    done.forEach(d=>{ const b=document.createElement("button"); b.type="button"; b.className="mkpop-row";
+      const a=document.createElement("div"); a.className="mkpop-a";
+      const dt=document.createElement("b"); dt.textContent=fmtDate(d.date)+(d.heure?" · "+d.heure.replace(":"," h "):"");
+      const m=document.createElement("span"); m.textContent=[metrics(d),d.gaz].filter(Boolean).join(" · "); a.append(dt,m);
+      b.append(a);
+      if(d.notes){ const n=document.createElement("p"); n.textContent=d.notes; b.append(n); }
+      b.onclick=()=>{ if(!readonly){ hidePop(); openForm(d); } };
+      if(readonly) b.style.cursor="default";
+      l.append(b); });
+    pop.append(l);
+  } else { const p=document.createElement("p"); p.className="mkpop-empty"; p.textContent="Aucune plongée réalisée sur ce site pour l’instant."; pop.append(p); }
+  if(!readonly){ const add=document.createElement("button"); add.type="button"; add.className="btn pri"; add.textContent="Ajouter une plongée ici"; add.onclick=()=>{ hidePop(); openForm(null,id); }; pop.append(add); }
+  pop.hidden=false;
+  const W=Math.min(320,box.width-20); pop.style.width=W+"px";
+  const [px0,py0]=popAt; const above=py0>box.height/2;
+  pop.style.left=Math.max(10,Math.min(px0-W/2,box.width-W-10))+"px";
+  if(above){ pop.style.top=""; pop.style.bottom=(box.height-py0+16)+"px"; pop.style.maxHeight=(py0-26)+"px"; }
+  else { pop.style.bottom=""; pop.style.top=(py0+16)+"px"; pop.style.maxHeight=(box.height-py0-26)+"px"; }
+}
+svg.addEventListener("pointerdown",e=>{ if(!e.target.closest(".mk")) hidePop(); });
+svg.addEventListener("wheel",hidePop,{passive:true});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!pop.hidden) hidePop(); });
+const _drawMk=drawMarkers; drawMarkers=function(){ _drawMk(); if(popId&&!pop.hidden) showPop(popId,null); };
 document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{filter=b.dataset.f;document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===b));render();});
 
 // ---------- Formulaire ----------
