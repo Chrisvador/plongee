@@ -393,6 +393,10 @@ svg text{font-family:var(--f-body)}
 <style>
 .acct-btn{padding:6px 12px;font-size:13px}
 .bz-only[hidden]{display:none!important}
+.years{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:8px;padding:2px 0}
+.years::-webkit-scrollbar{display:none}
+.ychip{flex:none;font:600 13px var(--f-mono);padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+.ychip[aria-pressed="true"]{background:var(--done);border-color:var(--done);color:#fff}
 .overlay{z-index:2000}
 #auth{z-index:3000}
 .mapbox{isolation:isolate}
@@ -574,6 +578,7 @@ html,body{overflow-x:hidden}
           <button class="chip" data-f="prevue" aria-pressed="false">À venir</button>
           <button class="chip" data-f="faite" aria-pressed="false">Réalisées</button>
         </div>
+        <div class="years" id="years" role="group" aria-label="Année"></div>
         <div class="list" id="list"></div>
       </div>
     </div>
@@ -1032,7 +1037,18 @@ new ResizeObserver(()=>{ map.invalidateSize(); if(pendingFit) fitZone(false); })
 const ZOOM_SITES=7;
 let selected=null, filter="all";
 const inZone=d=>ZONE==="monde"||zoneOf(d.site)===ZONE;
-function statusOf(id){ const ds=dives.filter(d=>d.site===id); return {done:ds.some(d=>d.statut==="faite"), plan:ds.some(d=>d.statut==="prevue"), n:ds.length}; }
+let YEAR=(()=>{ try{ return localStorage.getItem("cp-year")||"all"; }catch{ return "all"; } })();
+const inYear=d=>YEAR==="all"||(d.date||"").slice(0,4)===YEAR;
+const vis=()=>dives.filter(inYear);
+function paintYears(){
+  const box=$("years"); if(!box) return;
+  const ys=[...new Set(dives.filter(inZone).map(d=>(d.date||"").slice(0,4)).filter(Boolean))].sort().reverse();
+  if(YEAR!=="all"&&!ys.includes(YEAR)) ys.unshift(YEAR);
+  box.replaceChildren();
+  [["all","Toutes années"],...ys.map(y=>[y,y])].forEach(([v,l])=>{ const b=document.createElement("button"); b.type="button"; b.className="ychip"; b.textContent=l; b.setAttribute("aria-pressed",v===YEAR);
+    b.onclick=()=>{ YEAR=v; try{localStorage.setItem("cp-year",v);}catch{} map.closePopup(); render(); }; box.append(b); });
+}
+function statusOf(id){ const ds=vis().filter(d=>d.site===id); return {done:ds.some(d=>d.statut==="faite"), plan:ds.some(d=>d.statut==="prevue"), n:ds.length}; }
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function zoneBounds(z){ return L.latLngBounds(z.b); }
 function allBounds(){ let b=null; ZONES.forEach(z=>{ b=b?b.extend(zoneBounds(z)):zoneBounds(z); }); return b; }
@@ -1042,7 +1058,7 @@ function drawMarkers(){
   const zm=map.getZoom();
   if(ZONE==="monde"&&zm<ZOOM_SITES){
     ZONES.forEach(z=>{
-      const n=dives.filter(d=>zoneOf(d.site)===z.id&&d.statut==="faite").length, np=dives.filter(d=>zoneOf(d.site)===z.id&&d.statut==="prevue").length;
+      const V=vis(); const n=V.filter(d=>zoneOf(d.site)===z.id&&d.statut==="faite").length, np=V.filter(d=>zoneOf(d.site)===z.id&&d.statut==="prevue").length;
       const c=zoneBounds(z).getCenter();
       const ic=L.divIcon({className:"zb-wrap",iconSize:null,iconAnchor:[0,0],
         html:`<div class="zbadge${z.id===ZONE?" on":""}"><b>${esc(z.nom)}</b><span>${n?n+" plongée"+(n>1?"s":""):"aucune plongée"}${np?" · "+np+" à venir":""}</span></div>`});
@@ -1055,18 +1071,18 @@ function drawMarkers(){
     const groups={}; zs.forEach(x=>(groups[x.secteur||"Sites"]??=[]).push(x));
     if(sb&&Object.keys(groups).length>1&&(sb.getNorth()-sb.getSouth()>1||sb.getEast()-sb.getWest()>1)){
       for(const g in groups){ const gb=L.latLngBounds(groups[g].map(x=>[x.lat,x.lon])); const ids=new Set(groups[g].map(x=>x.id));
-        const n=dives.filter(d=>ids.has(d.site)&&d.statut==="faite").length;
+        const n=vis().filter(d=>ids.has(d.site)&&d.statut==="faite").length;
         const ic=L.divIcon({className:"zb-wrap",iconSize:null,iconAnchor:[0,0],html:`<div class="zbadge isl"><b>${esc(g)}</b><span>${groups[g].length} sites${n?" · "+n+" plongée"+(n>1?"s":""):""}</span></div>`});
         L.marker(gb.getCenter(),{icon:ic,title:g}).on("click",()=>map.flyToBounds(gb.pad(0.6),{maxZoom:14,duration:.8})).addTo(gMk); }
       return; } }
   const showLbl = zm>=13;
   if(!mapbox.offsetWidth) return;
-  const vis=map.getBounds().pad(0.3);
+  const viewB=map.getBounds().pad(0.3);
   SITE_LIST.forEach(s=>{
     const st=statusOf(s.id), sel=s.id===selected;
     if(filter==="faite"&&!st.done&&!sel) return;
     if(filter==="prevue"&&!st.plan&&!sel) return;
-    if(!vis.contains([s.lat,s.lon])) return;
+    if(!viewB.contains([s.lat,s.lon])) return;
     const cls=["stone",st.done?"done":"",st.plan?"plan":"",sel?"sel":""].join(" ");
     const ic=L.divIcon({className:"st-wrap",iconSize:[24,18],iconAnchor:[12,9],
       html:`<span class="${cls}">${st.n>1?st.n:""}</span>${(showLbl||sel)?`<em class="${sel?"sel":""}">${esc(s.name)}</em>`:""}`});
@@ -1081,8 +1097,8 @@ const metrics=d=>[d.prof?`${String(d.prof).replace(".",",")} m`:null,d.duree?`${
 let popId=null;
 function popContent(id){
   const s=byId[id]; const box=document.createElement("div"); box.className="mkpop";
-  const done=dives.filter(d=>d.site===id&&d.statut==="faite").sort((a,b)=>((b.date||"")+(b.heure||"")).localeCompare((a.date||"")+(a.heure||"")));
-  const np=dives.filter(d=>d.site===id&&d.statut!=="faite").length;
+  const done=vis().filter(d=>d.site===id&&d.statut==="faite").sort((a,b)=>((b.date||"")+(b.heure||"")).localeCompare((a.date||"")+(a.heure||"")));
+  const np=vis().filter(d=>d.site===id&&d.statut!=="faite").length;
   const h=document.createElement("h4"); h.textContent=s.name;
   const z=document.createElement("span"); z.className="mkpop-sub"; z.textContent=(zById[s.zone]?.nom||"")+(s.secteur?" · "+s.secteur:"")+" · "+(done.length?done.length+" plongée"+(done.length>1?"s":"")+" réalisée"+(done.length>1?"s":""):"jamais plongé")+(np?" · "+np+" à venir":"");
   box.append(h,z);
@@ -1157,7 +1173,7 @@ function item(d,TM,SI){
   b.append(dot,mid,m); b.onclick=()=>showOnMap(d.site); return b;
 }
 function render(){
-  const zd=dives.filter(inZone);
+  const zd=dives.filter(inZone).filter(inYear); paintYears();
   const done=zd.filter(d=>d.statut==="faite"), plan=zd.filter(d=>d.statut==="prevue");
   const maxP=Math.max(0,...done.map(d=>+d.prof||0)); const tot=done.reduce((a,d)=>a+(+d.duree||0),0);
   const st=$("stats"); st.replaceChildren();
@@ -1167,7 +1183,7 @@ function render(){
   TM=diveTimes(dives); SI=surfaceIntervals(dives,TM);
   const shown=zd.filter(d=>filter==="all"||d.statut===filter);
   if(!shown.length){ const e=document.createElement("div"); e.className="empty";
-    e.innerHTML = zd.length? "Aucune plongée dans ce filtre." : dives.length? "Aucune plongée dans cette zone pour l’instant." : readonly? "Aucune plongée dans cette copie." : "<strong>Le carnet est vide.</strong> Touchez un site sur la carte, puis « Ajouter une plongée ».";
+    e.innerHTML = zd.length? "Aucune plongée dans ce filtre." : YEAR!=="all"? "Aucune plongée en "+YEAR+" dans cette zone." : dives.length? "Aucune plongée dans cette zone pour l’instant." : readonly? "Aucune plongée dans cette copie." : "<strong>Le carnet est vide.</strong> Touchez un site sur la carte, puis « Ajouter une plongée ».";
     list.append(e); }
   const tsOf=d=>TM.get(d.id)?.ts??Infinity;
   const P=shown.filter(d=>d.statut==="prevue").sort((a,b)=>tsOf(a)-tsOf(b));
@@ -1192,7 +1208,7 @@ function renderSite(){
     const h=document.createElement("h2"); h.textContent=z?"Touchez un repère":"Choisissez une zone";
     const p=document.createElement("p"); p.textContent=z?(z.intro||"Touchez un repère pour voir ses plongées ou en ajouter une."):"Touchez une zone sur la carte ou dans le bandeau. Touchez une plongée de la liste pour la retrouver sur la carte.";
     c.append(k,h,p); return; }
-  const s=byId[selected]; const ds=dives.filter(d=>d.site===selected);
+  const s=byId[selected]; const ds=vis().filter(d=>d.site===selected);
   const z=document.createElement("span"); z.className="zone"; z.textContent=(zById[s.zone]?.nom||"")+(s.secteur?" · "+s.secteur:"")+` · ${coord(s.lat,"N","S")} ${coord(s.lon,"E","O")}`;
   const h=document.createElement("h2"); h.textContent=s.name;
   const p=document.createElement("p"); const nd=ds.filter(d=>d.statut==="faite").length, np=ds.length-nd;
