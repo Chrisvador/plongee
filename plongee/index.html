@@ -499,6 +499,7 @@ html,body{overflow-x:hidden}
         <button class="btn pri" type="submit" style="grid-column:1/-1">Inviter</button>
       </form>
       <p class="acct-note" id="acctMsg" role="status"></p>
+      <div id="acctPublic" style="margin-top:6px"></div>
     </div>
     <div class="foot"><button class="btn danger" id="acctOut" type="button">Se déconnecter</button><button class="btn" id="acctClose" type="button">Fermer</button></div>
   </div>
@@ -983,6 +984,7 @@ window.BONAIRE={
   get sites(){ return SITE_LIST.map(s=>[s.id,s.name,s.lat,s.lon,(zById[s.zone]?.nom||"")+" · "+(s.secteur||"Sites")]); },
   listeners:[], dives:()=>dives, times:diveTimes, readonly:()=>readonly,
   siteName:id=>byId[id]?.name||null, siteZone:zoneOf, save:(id,obj)=>saveDive(id,obj), plan:null,
+  site:id=>byId[id]||null, siteList:()=>SITE_LIST, zoneById:id=>zById[id]||null, edit:id=>{ const d=dives.find(x=>x.id===id); if(d&&!readonly) openForm(d); }, rerender:()=>render(), year:()=>YEAR, showOnMap:id=>{ showView("map"); showOnMap(id); },
   zone:()=>ZONE==="monde"?null:zById[ZONE]||null, zones:()=>ZONES, setZone:id=>setZone(id), onZone:f=>zoneListeners.push(f)
 };
 function setSync(on,txt){syncEl.classList.toggle("on",on);syncEl.querySelector("span").textContent=txt;}
@@ -1038,7 +1040,7 @@ const ZOOM_SITES=7;
 let selected=null, filter="all";
 const inZone=d=>ZONE==="monde"||zoneOf(d.site)===ZONE;
 let YEAR=(()=>{ try{ return localStorage.getItem("cp-year")||"all"; }catch{ return "all"; } })();
-const inYear=d=>YEAR==="all"||(d.date||"").slice(0,4)===YEAR;
+const inYear=d=>(YEAR==="all"||(d.date||"").slice(0,4)===YEAR)&&(!window.CP_FILTER||window.CP_FILTER(d));
 const vis=()=>dives.filter(inYear);
 function paintYears(){
   const box=$("years"); if(!box) return;
@@ -1109,8 +1111,7 @@ function popContent(id){
       const m=document.createElement("span"); m.textContent=[metrics(d),d.gaz].filter(Boolean).join(" · "); a.append(dt,m);
       b.append(a);
       if(d.notes){ const n=document.createElement("p"); n.textContent=d.notes; b.append(n); }
-      b.onclick=()=>{ if(!readonly){ map.closePopup(); openForm(d); } };
-      if(readonly) b.style.cursor="default";
+      b.onclick=()=>{ map.closePopup(); if(window.BONAIRE.openDive) window.BONAIRE.openDive(d.id); else if(!readonly) openForm(d); };
       l.append(b); });
     box.append(l);
   } else { const p=document.createElement("p"); p.className="mkpop-empty"; p.textContent="Aucune plongée réalisée sur ce site pour l’instant."; box.append(p); }
@@ -1170,7 +1171,7 @@ function item(d,TM,SI){
   if(SI&&SI.has(d.id)){ const si=document.createElement("span"); si.className="si"; si.textContent=" · IS "+SI.get(d.id); s.append(si); }
   mid.append(t,s);
   const m=document.createElement("span"); m.className="m"; m.textContent=metrics(d);
-  b.append(dot,mid,m); b.onclick=()=>showOnMap(d.site); return b;
+  b.append(dot,mid,m); b.onclick=()=>{ if(window.BONAIRE.openDive) window.BONAIRE.openDive(d.id); else showOnMap(d.site); }; return b;
 }
 function render(){
   const zd=dives.filter(inZone).filter(inYear); paintYears();
@@ -2106,6 +2107,7 @@ if(BZ) BZ.listeners.push(()=>{ renderNext(); });
 function showView(v){
   for(const b of document.querySelectorAll('.views button')) b.setAttribute('aria-selected',b.dataset.v===v);
   $('v-map').hidden=v!=='map'; $('sec-plan').hidden=v!=='plan'; $('sec-ndl').hidden=v!=='ndl'; $('sec-meteo').hidden=v!=='meteo'; $('sec-padi').hidden=v!=='padi';
+  ['stats','voyages'].forEach(k=>{ const e=$('sec-'+k); if(e) e.hidden=v!==k; }); document.dispatchEvent(new CustomEvent('cp-view',{detail:v}));
   if(v==='meteo') renderMeteo();
   if(v==='ndl') renderNdl(); lsSet('bz-view',v);
 }
@@ -2243,4 +2245,5 @@ render();
 })();
 </script>
 
+<script src="extras.js"></script>
 </body></html>

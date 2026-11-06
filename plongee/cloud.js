@@ -22,7 +22,7 @@ const saveQueue = () => lss(QK, queue);
 
 /* ---------- statut ---------- */
 function setStatus() {
-  const el = $('sync'); if (!el || !carnet) return;
+  const el = $('sync'); if (!el || !carnet || PUBLIC_ID) return;
   const n = queue.length, off = !navigator.onLine;
   const txt = off ? (n ? `Hors ligne · ${n} en attente` : 'Hors ligne') : n ? `Envoi de ${n} modification${n > 1 ? 's' : ''}…` : (role === 'lecteur' ? 'Synchronisé · lecture seule' : 'Synchronisé · partagé');
   el.classList.toggle('on', !off && !n);
@@ -92,6 +92,8 @@ const db = {
 };
 
 let resolveReady; const ready = new Promise(r => { resolveReady = r; });
+const PUBLIC_ID = new URLSearchParams(location.search).get('voir');
+window.CP = { sb, get carnet() { return carnet; }, get role() { return role; }, get me() { return me; }, publicView: !!PUBLIC_ID };
 window.claude = { use: async cap => cap === 'db' ? ready : null };
 
 let channel = null;
@@ -200,7 +202,7 @@ async function openAccount() {
   $('acctRole').textContent = (cache.nom || 'Carnet') + ' · ' + (ROLE[role] || '');
   $('acctShare').hidden = role !== 'proprietaire';
   $('acctMsg').textContent = '';
-  if (role === 'proprietaire') await paintMembers();
+  if (role === 'proprietaire') { await paintMembers(); await paintPublic(); }
 }
 async function paintMembers() {
   const list = $('acctList');
@@ -212,6 +214,15 @@ async function paintMembers() {
   const rows = (m.data || []).map(x => `<div class="acct-row"><span>${esc(x.email)}${x.user_id === me.id ? ' (vous)' : ''}<small>${ROLE[x.role] || x.role}</small></span>${x.user_id === me.id ? '' : `<button class="btn" data-rm="${esc(x.user_id)}">Retirer</button>`}</div>`)
     .concat((i.data || []).map(x => `<div class="acct-row"><span>${esc(x.email)}<small>Invitation en attente · ${ROLE[x.role] || x.role}</small></span><button class="btn" data-cancel="${esc(x.email)}">Annuler</button></div>`));
   list.innerHTML = rows.join('') || '<p class="acct-note">Personne d\'autre pour l\'instant.</p>';
+}
+async function paintPublic() {
+  const box = $('acctPublic'); if (!box) return;
+  const { data } = await sb.from('carnets').select('public').eq('id', carnet).maybeSingle();
+  const on = !!(data && data.public), url = location.origin + location.pathname + '?voir=' + carnet;
+  box.innerHTML = `<label class="acct-row" style="cursor:pointer"><span>Lien public en lecture<small>Carte, plongées et statistiques visibles sans compte (sans le parcours PADI ni les photos)</small></span><input type="checkbox" id="pubOn" ${on ? 'checked' : ''} style="width:22px;height:22px;accent-color:var(--done)"></label>` +
+    (on ? `<div class="invite" style="margin-top:6px"><input class="f" id="pubUrl" readonly value="${esc(url)}" style="font:13px var(--f-mono);padding:8px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--fg);min-width:0"><button class="btn" type="button" id="pubCopy">Copier</button></div>` : '');
+  $('pubOn').onchange = async e => { const { error } = await sb.from('carnets').update({ public: e.target.checked }).eq('id', carnet); if (error) $('acctMsg').textContent = 'Réglage impossible : ' + error.message; paintPublic(); };
+  const c = $('pubCopy'); if (c) c.onclick = async () => { try { await navigator.clipboard.writeText(url); c.textContent = 'Copié'; } catch { $('pubUrl').select(); } };
 }
 function bindAccount() {
   $('acctBtn').onclick = openAccount;
@@ -238,8 +249,17 @@ function bindAccount() {
 }
 
 /* ---------- démarrage ---------- */
+async function startPublic() {
+  carnet = PUBLIC_ID; role = 'lecteur'; me = { id: 'public', email: '' };
+  hideLogin(); document.documentElement.classList.add('public-view');
+  const ab = $('acctBtn'); if (ab) ab.hidden = true;
+  cache = { cols: {}, carnet, role, uid: 'public' };
+  resolveReady(db); setStatus();
+  const el = $('sync'); if (el) { el.classList.add('on'); const sp = el.querySelector('span'); if (sp) sp.textContent = 'Carnet partagé · lecture seule'; }
+}
 document.addEventListener('DOMContentLoaded', async () => {
   bindLogin(); bindAccount();
+  if (PUBLIC_ID) { startPublic(); return; }
   sb.auth.onAuthStateChange((ev, session) => {
     if (ev === 'PASSWORD_RECOVERY') { mode = 'newpw'; showLogin('Choisissez votre nouveau mot de passe.'); return; }
     if (ev === 'SIGNED_IN' && session && !me) start(session);
