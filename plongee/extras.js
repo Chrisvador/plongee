@@ -242,21 +242,49 @@ function paintDive() {
   }
   if (!PUBLIC) paintPhotos(d);
 }
-async function paintPhotos(d) {
-  const box = $('cpPh'); if (!box) return; const ph = d.photos || [], R = ro();
-  box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="Photo ${i + 1}" data-i="${i}"></div>`).join('') +
-    (R ? '' : '<label class="add">+ Ajouter des photos<input type="file" accept="image/*" multiple hidden id="cpPhIn"></label>');
+/* photos : miniatures + cache local (Cache API) pour ne pas retélécharger */
+const PHC = 'cp-photos-v1', objUrl = new Map(), noThumb = new Set(lsG('cp-nothumb') || []);
+const thumbOf = p => p.replace(/\.jpg$/, '_t.jpg');
+async function cacheGet(path) { try { const c = await caches.open(PHC), r = await c.match(location.origin + '/__photo/' + path); return r ? await r.blob() : null; } catch { return null; } }
+async function cachePut(path, blob) { try { const c = await caches.open(PHC); await c.put(location.origin + '/__photo/' + path, new Response(blob, { headers: { 'content-type': blob.type || 'image/jpeg' } })); } catch {} }
+async function photoURLs(paths) {   // renvoie une URL locale par chemin (null si introuvable)
+  const out = new Map(), miss = [];
+  for (const p of paths) { if (objUrl.has(p)) { out.set(p, objUrl.get(p)); continue; } const b = await cacheGet(p); if (b) { const u = URL.createObjectURL(b); objUrl.set(p, u); out.set(p, u); } else miss.push(p); }
+  if (miss.length) { const urls = await signed(miss);
+    await Promise.all(miss.map(async (p, i) => { if (!urls[i]) return; try { const r = await fetch(urls[i]); if (!r.ok) return; const b = await r.blob(); cachePut(p, b); const u = URL.createObjectURL(b); objUrl.set(p, u); out.set(p, u); } catch {} })); }
+  return paths.map(p => out.get(p) || null);
+}
+async function thumbURLs(paths) {
+  const want = paths.map(p => noThumb.has(p) ? p : thumbOf(p)), urls = await photoURLs(want), retry = [];
+  urls.forEach((u, i) => { if (!u && want[i] !== paths[i]) { noThumb.add(paths[i]); retry.push(i); } });
+  if (retry.length) { lsS('cp-nothumb', [...noThumb]); const r = await photoURLs(retry.map(i => paths[i])); retry.forEach((i, k) => urls[i] = r[k]); }
+  return urls;
+}
+async function uploadPhoto(file, dir) {
+  const full = await shrink(file), th = await shrink(file, 480), path = `${window.CP.carnet}/${dir}/${uuid()}.jpg`;
+  let { error } = await store().upload(path, full, { contentType: 'image/jpeg', upsert: false }); if (error) throw error;
+  await store().upload(thumbOf(path), th, { contentType: 'image/jpeg', upsert: false });
+  cachePut(path, full); cachePut(thumbOf(path), th); return path;
+}
+const gridState = new WeakMap();
+function photoGrid(box, ph, { R, dir, max, label, onAdd, onDel, msg }) {
+  if (!box) return;
+  const key = JSON.stringify([ph, R]); if (gridState.get(box) === key) return; gridState.set(box, key);
+  box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="${label} ${i + 1}" data-i="${i}" decoding="async"></div>`).join('') +
+    (R ? '' : `<label class="add">+ Ajouter des photos<input type="file" accept="image/*" multiple hidden></label>`);
   if (!ph.length && R) box.innerHTML = '<span class="cp-note">Aucune photo.</span>';
-  if (ph.length) { const urls = await signed(ph); box.querySelectorAll('img[data-i]').forEach(im => { const u = urls[+im.dataset.i]; if (u) { im.src = u; const i = +im.dataset.i; im.onclick = () => lightbox(u, R ? null : async () => { try { await store().remove([ph[i]]); } catch {} await patchDive(d.id, { photos: (getDive(d.id).photos || []).filter(x => x !== ph[i]) }); paintDive(); }); } }); }
-  const inp = $('cpPhIn'); if (inp) inp.onchange = async () => {
-    const files = [...inp.files].slice(0, 12), msg = $('cpPhMsg'); if (!files.length || !store()) return;
-    const carnet = window.CP.carnet, add = [];
-    for (let k = 0; k < files.length; k++) { msg.textContent = `Envoi ${k + 1}/${files.length}…`;
-      try { const b = await shrink(files[k]); const path = `${carnet}/${d.id}/${uuid()}.jpg`;
-        const { error } = await store().upload(path, b, { contentType: 'image/jpeg', upsert: false }); if (error) throw error; add.push(path); }
-      catch (e) { msg.textContent = 'Envoi impossible : ' + (e.message || e); } }
-    if (add.length) { await patchDive(d.id, { photos: [...(getDive(d.id).photos || []), ...add] }); msg.textContent = add.length + ' photo(s) ajoutée(s)'; paintDive(); }
+  if (ph.length) thumbURLs(ph).then(urls => box.querySelectorAll('img[data-i]').forEach(im => { const i = +im.dataset.i, u = urls[i]; if (!u) return; im.src = u;
+    im.onclick = async () => { const [f] = await photoURLs([ph[i]]); lightbox(f || u, R ? null : async () => { try { await store().remove([ph[i], thumbOf(ph[i])]); } catch {} await onDel(ph[i]); }); }; }));
+  const inp = box.querySelector('input[type=file]'); if (inp) inp.onchange = async () => {
+    const files = [...inp.files].slice(0, max); if (!files.length || !store()) return; const add = [];
+    for (let k = 0; k < files.length; k++) { msg(`Envoi ${k + 1}/${files.length}…`); try { add.push(await uploadPhoto(files[k], dir)); } catch (e) { msg('Envoi impossible : ' + (e.message || e)); } }
+    if (add.length) { await onAdd(add); msg(add.length + ' photo(s) ajoutée(s)'); }
   };
+}
+function paintPhotos(d) {
+  photoGrid($('cpPh'), d.photos || [], { R: ro(), dir: d.id, max: 12, label: 'Photo', msg: t => { const m = $('cpPhMsg'); if (m) m.textContent = t; },
+    onAdd: async add => { await patchDive(d.id, { photos: [...(getDive(d.id).photos || []), ...add] }); paintDive(); },
+    onDel: async p => { await patchDive(d.id, { photos: (getDive(d.id).photos || []).filter(x => x !== p) }); paintDive(); } });
 }
 
 /* ---------------- import Shearwater ---------------- */
@@ -594,21 +622,11 @@ function renderVoy() {
   one.querySelectorAll('.cp-chk input').forEach(c => c.onchange = () => saveVoy({ ...v, check: { ...(v.check || {}), [c.dataset.k]: c.checked } }));
   paintVoyPhotos(v);
 }
-async function paintVoyPhotos(v) {
-  const box = $('cpVPh'); if (!box) return; const ph = v.photos || [], R = ro();
-  box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="Photo ${i + 1} du voyage" data-i="${i}"></div>`).join('') +
-    (R ? '' : '<label class="add">+ Ajouter des photos<input type="file" accept="image/*" multiple hidden id="cpVPhIn"></label>');
-  if (!ph.length && R) box.innerHTML = '<span class="cp-note">Aucune photo.</span>';
-  if (ph.length) { const urls = await signed(ph); box.querySelectorAll('img[data-i]').forEach(im => { const u = urls[+im.dataset.i]; if (u) { im.src = u; const i = +im.dataset.i; im.onclick = () => lightbox(u, R ? null : async () => { try { await store().remove([ph[i]]); } catch {} const cur = voyages.find(x => x.id === v.id) || v; await saveVoy({ ...cur, photos: (cur.photos || []).filter(x => x !== ph[i]) }); }); } }); }
-  const inp = $('cpVPhIn'); if (inp) inp.onchange = async () => {
-    const files = [...inp.files].slice(0, 30), msg = $('cpVPhMsg'); if (!files.length || !store()) return;
-    const add = [];
-    for (let k = 0; k < files.length; k++) { msg.textContent = `Envoi ${k + 1}/${files.length}…`;
-      try { const b = await shrink(files[k]); const path = `${window.CP.carnet}/voyages/${v.id}/${uuid()}.jpg`;
-        const { error } = await store().upload(path, b, { contentType: 'image/jpeg', upsert: false }); if (error) throw error; add.push(path); }
-      catch (e) { msg.textContent = 'Envoi impossible : ' + (e.message || e); } }
-    if (add.length) { const cur = voyages.find(x => x.id === v.id) || v; await saveVoy({ ...cur, photos: [...(cur.photos || []), ...add] }); toast(add.length + ' photo(s) ajoutée(s)'); }
-  };
+function paintVoyPhotos(v) {
+  const cur = () => voyages.find(x => x.id === v.id) || v;
+  photoGrid($('cpVPh'), v.photos || [], { R: ro(), dir: 'voyages/' + v.id, max: 30, label: 'Photo du voyage', msg: t => { const m = $('cpVPhMsg'); if (m) m.textContent = t; },
+    onAdd: async add => { await saveVoy({ ...cur(), photos: [...(cur().photos || []), ...add] }); },
+    onDel: async p => { await saveVoy({ ...cur(), photos: (cur().photos || []).filter(x => x !== p) }); } });
 }
 function autoVoyages() {
   const ds = done().filter(d => d.date && BZ.siteZone(d.site) && BZ.siteZone(d.site) !== 'france').sort((a, b) => a.date.localeCompare(b.date));
@@ -650,10 +668,13 @@ function paintVoyEdit(body, v) {
     body.querySelector('[data-a="c"]').onclick = () => { vEdit = false; renderVoy(); };
     const del = body.querySelector('[data-a="del"]'); if (del) del.onclick = async () => {
       if (del.dataset.arm !== '1') { del.dataset.arm = '1'; del.textContent = 'Confirmer la suppression'; return; }
-      try { if ((v.photos || []).length && store()) await store().remove(v.photos); } catch {}
+      try { if ((v.photos || []).length && store()) await store().remove([...v.photos, ...v.photos.map(thumbOf)]); } catch {}
       try { await vRef.doc(v.id).delete(); } catch { toast('Suppression impossible'); }
       vSel = null; lsS('cp-voy', null); vEdit = false; renderVoy(); };
     body.querySelector('[data-a="s"]').onclick = async () => {
+      body.querySelectorAll('[data-g]').forEach(inp => E[inp.dataset.g] = inp.value);   // relit le formulaire tel qu'affiché
+      body.querySelectorAll('[data-i] [data-f],[data-v] [data-f]').forEach(inp => { const r = inp.closest('[data-i],[data-v]'), o = r.dataset.i != null ? E.etapes[+r.dataset.i] : E.vols[+r.dataset.v];
+        if (o) o[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value; });
       const COORD = { tahiti: [-17.535, -149.57], 'taha a': [-16.625, -151.5], tahaa: [-16.625, -151.5], rangiroa: [-14.97, -147.632], tetiaroa: [-17.01, -149.56], fakarava: [-16.06, -145.62], moorea: [-17.53, -149.83], 'bora bora': [-16.5, -151.74], raiatea: [-16.83, -151.43] };
       E.etapes.forEach(e => { const c = COORD[norm(e.lieu)]; if (c) { e.lat = c[0]; e.lon = c[1]; } });
       E.nom = (E.nom || '').trim();
