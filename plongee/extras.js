@@ -61,6 +61,12 @@ document.head.append(el('style', null, `
 .cp-ph .t{position:relative;aspect-ratio:1;border-radius:9px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}
 .cp-ph img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
 .cp-ph label.add{display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:9px;border:1.5px dashed var(--line);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;text-align:center;padding:6px}
+.cp-ph .t.up img{opacity:.45}
+.cp-ph .t.up .pg{position:absolute;inset:auto 4px 4px 4px;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);border-radius:6px;padding:2px 5px;text-align:center}
+.cp-ph .t.up.run .pg{background:var(--done)}
+.cp-ph .t.up.err .pg{background:var(--red)}
+.cp-ph .t.lost{display:flex}
+.cp-ph .lostb{all:unset;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11.5px;color:var(--muted);padding:6px}
 .cp-light{position:fixed;inset:0;z-index:2600;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:12px}
 .cp-light{flex-direction:column;gap:12px}
 .cp-light img{max-width:100%;max-height:calc(100% - 64px);object-fit:contain}
@@ -260,31 +266,58 @@ async function thumbURLs(paths) {
   if (retry.length) { lsS('cp-nothumb', [...noThumb]); const r = await photoURLs(retry.map(i => paths[i])); retry.forEach((i, k) => urls[i] = r[k]); }
   return urls;
 }
+function loadImg(file) { return new Promise((res, rej) => { const img = new Image(), u = URL.createObjectURL(file);
+  img.onload = () => { URL.revokeObjectURL(u); res(img); }; img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('image illisible')); }; img.src = u; }); }
+const toJpeg = (img, max, q) => new Promise((res, rej) => { const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  c.toBlob(b => b ? res(b) : rej(new Error('jpeg')), 'image/jpeg', q); });
 async function uploadPhoto(file, dir) {
-  const full = await shrink(file), th = await shrink(file, 480), path = `${window.CP.carnet}/${dir}/${uuid()}.jpg`;
-  let { error } = await store().upload(path, full, { contentType: 'image/jpeg', upsert: false }); if (error) throw error;
-  await store().upload(thumbOf(path), th, { contentType: 'image/jpeg', upsert: false });
-  cachePut(path, full); cachePut(thumbOf(path), th); return path;
+  const img = await loadImg(file), full = await toJpeg(img, 1600, .8), th = await toJpeg(img, 480, .74), path = `${window.CP.carnet}/${dir}/${uuid()}.jpg`;
+  const [a] = await Promise.all([store().upload(path, full, { contentType: 'image/jpeg', upsert: false }), store().upload(thumbOf(path), th, { contentType: 'image/jpeg', upsert: false })]);
+  if (a.error) throw a.error;
+  cachePut(path, full); cachePut(thumbOf(path), th); objUrl.set(thumbOf(path), URL.createObjectURL(th)); return path;
 }
+/* liste de photos robuste : une photo supprimée ne revient pas, une photo ajoutée ne disparaît pas (échos de synchro décalés) */
+const gonePh = new Set(), addedPh = new Map(), upQ = new Map();   // upQ : envois en cours par dossier
+const fixList = (key, list) => [...new Set([...(list || []), ...(addedPh.get(key) || [])])].filter(p => !gonePh.has(p));
+const markAdded = (key, ps) => { if (!addedPh.has(key)) addedPh.set(key, new Set()); ps.forEach(p => addedPh.get(key).add(p)); };
 const gridState = new WeakMap();
-function photoGrid(box, ph, { R, dir, max, label, onAdd, onDel, msg }) {
-  if (!box) return;
-  const key = JSON.stringify([ph, R]); if (gridState.get(box) === key) return; gridState.set(box, key);
+function photoGrid(box, list, { R, dir, max, label, onSave, msg }) {
+  if (!box) return; box.dataset.grid = dir;
+  const ph = fixList(dir, list), q = upQ.get(dir) || [];
+  const key = JSON.stringify([ph, R, q.map(x => x.st)]); if (gridState.get(box) === key) return; gridState.set(box, key);
   box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="${label} ${i + 1}" data-i="${i}" decoding="async"></div>`).join('') +
+    q.filter(x => x.st !== 'ok').map(x => `<div class="t up ${x.st}"><img alt="" src="${x.prev}"><span class="pg">${x.st === 'err' ? 'Échec' : x.st === 'wait' ? 'En attente' : 'Envoi…'}</span></div>`).join('') +
     (R ? '' : `<label class="add">+ Ajouter des photos<input type="file" accept="image/*" multiple hidden></label>`);
-  if (!ph.length && R) box.innerHTML = '<span class="cp-note">Aucune photo.</span>';
-  if (ph.length) thumbURLs(ph).then(urls => box.querySelectorAll('img[data-i]').forEach(im => { const i = +im.dataset.i, u = urls[i]; if (!u) return; im.src = u;
-    im.onclick = async () => { const [f] = await photoURLs([ph[i]]); lightbox(f || u, R ? null : async () => { try { await store().remove([ph[i], thumbOf(ph[i])]); } catch {} await onDel(ph[i]); }); }; }));
+  if (!ph.length && !q.length && R) box.innerHTML = '<span class="cp-note">Aucune photo.</span>';
+  const del = p => async () => { gonePh.add(p); try { await store().remove([p, thumbOf(p)]); } catch {} await onSave(); };
+  if (ph.length) thumbURLs(ph).then(async urls => {
+    const lost = ph.filter((p, i) => !urls[i]), full = lost.length ? await photoURLs(lost) : [];
+    box.querySelectorAll('img[data-i]').forEach(im => { const i = +im.dataset.i, p = ph[i], u = urls[i];
+      if (!u) { const t = im.parentElement; if (full[lost.indexOf(p)]) { im.src = full[lost.indexOf(p)]; } else { t.classList.add('lost'); t.innerHTML = `<button type="button" class="lostb">${R ? 'Photo introuvable' : 'Introuvable · retirer'}</button>`; if (!R) t.firstChild.onclick = del(p); return; } }
+      else im.src = u;
+      im.onclick = async () => { const [f] = await photoURLs([p]); lightbox(f || im.src, R ? null : del(p)); }; }); });
   const inp = box.querySelector('input[type=file]'); if (inp) inp.onchange = async () => {
-    const files = [...inp.files].slice(0, max); if (!files.length || !store()) return; const add = [];
-    for (let k = 0; k < files.length; k++) { msg(`Envoi ${k + 1}/${files.length}…`); try { add.push(await uploadPhoto(files[k], dir)); } catch (e) { msg('Envoi impossible : ' + (e.message || e)); } }
-    if (add.length) { await onAdd(add); msg(add.length + ' photo(s) ajoutée(s)'); }
+    const files = [...inp.files].slice(0, max); inp.value = ''; if (!files.length || !store()) return;
+    const items = files.map(f => ({ f, st: 'wait', prev: URL.createObjectURL(f) })); upQ.set(dir, [...(upQ.get(dir) || []), ...items]);
+    const curList = () => (gridOpts.get(dir) || (() => list))();
+    const refresh = () => { const b = document.querySelector(`[data-grid="${CSS.escape(dir)}"]`); if (b) { gridState.delete(b); photoGrid(b, curList(), { R, dir, max, label, onSave, msg }); } };
+    refresh();
+    let n = 0, idx = 0, batch = [];
+    const flush = async () => { if (!batch.length) return; batch = []; await onSave(); };
+    const worker = async () => { while (idx < items.length) { const it = items[idx++]; it.st = 'run'; refresh();
+      try { const p = await uploadPhoto(it.f, dir); it.st = 'ok'; markAdded(dir, [p]); batch.push(p); if (batch.length >= 4) await flush(); } catch (e) { it.st = 'err'; }
+      msg(`${++n}/${items.length} envoyée(s)`); refresh(); } };
+    await Promise.all([worker(), worker(), worker()]); await flush();
+    upQ.set(dir, (upQ.get(dir) || []).filter(x => !items.includes(x) || x.st === 'err')); items.filter(x => x.st === 'ok').forEach(x => URL.revokeObjectURL(x.prev));
+    const ko = items.filter(x => x.st === 'err').length; msg(ko ? `${items.length - ko} envoyée(s), ${ko} en échec` : `${items.length} photo(s) ajoutée(s)`); refresh();
   };
 }
+const gridOpts = new Map();   // dossier -> fonction qui renvoie la liste à jour
 function paintPhotos(d) {
-  photoGrid($('cpPh'), d.photos || [], { R: ro(), dir: d.id, max: 12, label: 'Photo', msg: t => { const m = $('cpPhMsg'); if (m) m.textContent = t; },
-    onAdd: async add => { await patchDive(d.id, { photos: [...(getDive(d.id).photos || []), ...add] }); paintDive(); },
-    onDel: async p => { await patchDive(d.id, { photos: (getDive(d.id).photos || []).filter(x => x !== p) }); paintDive(); } });
+  gridOpts.set(d.id, () => getDive(d.id)?.photos || []);
+  photoGrid($('cpPh'), d.photos || [], { R: ro(), dir: d.id, max: 30, label: 'Photo', msg: t => { const m = $('cpPhMsg'); if (m) m.textContent = t; },
+    onSave: async () => { await patchDive(d.id, { photos: fixList(d.id, getDive(d.id)?.photos) }); paintDive(); } });
 }
 
 /* ---------------- import Shearwater ---------------- */
@@ -623,10 +656,10 @@ function renderVoy() {
   paintVoyPhotos(v);
 }
 function paintVoyPhotos(v) {
-  const cur = () => voyages.find(x => x.id === v.id) || v;
-  photoGrid($('cpVPh'), v.photos || [], { R: ro(), dir: 'voyages/' + v.id, max: 30, label: 'Photo du voyage', msg: t => { const m = $('cpVPhMsg'); if (m) m.textContent = t; },
-    onAdd: async add => { await saveVoy({ ...cur(), photos: [...(cur().photos || []), ...add] }); },
-    onDel: async p => { await saveVoy({ ...cur(), photos: (cur().photos || []).filter(x => x !== p) }); } });
+  const dir = 'voyages/' + v.id, cur = () => voyages.find(x => x.id === v.id) || v;
+  gridOpts.set(dir, () => cur().photos || []);
+  photoGrid($('cpVPh'), v.photos || [], { R: ro(), dir, max: 60, label: 'Photo du voyage', msg: t => { const m = $('cpVPhMsg'); if (m) m.textContent = t; },
+    onSave: async () => { await saveVoy({ ...cur(), photos: fixList(dir, cur().photos) }); } });
 }
 function autoVoyages() {
   const ds = done().filter(d => d.date && BZ.siteZone(d.site) && BZ.siteZone(d.site) !== 'france').sort((a, b) => a.date.localeCompare(b.date));
