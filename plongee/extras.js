@@ -102,6 +102,12 @@ document.head.append(el('style', null, `
 .cp-ban-in span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .cp-ban-in b{font-size:15px}
 .cp-ban .cp-note{margin-top:6px}
+.cp-vl{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:6px}
+.cp-vc{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:inherit;font:inherit;cursor:pointer;min-width:0}
+.cp-vc[aria-pressed="true"]{border-color:var(--done);box-shadow:0 0 0 2px color-mix(in srgb,var(--done) 30%,transparent)}
+.cp-vc b{font-family:var(--f-display);font-size:16px}
+.cp-vc span{font-size:13px}
+.cp-vc small{font-size:12px;color:var(--muted)}
 .cp-faune{display:flex;gap:8px;align-items:center;margin-top:8px}
 .cp-faune select{flex:1;min-width:0}
 html.public-view [data-v="padi"],html.public-view [data-v="voyages"],html.public-view [data-v="plan"]{display:none}
@@ -499,47 +505,125 @@ function noFly(v) {
     const lastDay = lim.getHours() < 13 ? new Date(lim - 864e5) : lim;
     return { etape: before.lieu, vol: f, lim, lastDay: lastDay.toISOString().slice(0, 10), guess: !f.heure }; }).filter(Boolean);
 }
+let vSel = lsG('cp-voy');
+const today = () => new Date().toISOString().slice(0, 10);
+const vDeb = v => [...(v.etapes || []).map(e => e.du), ...(v.vols || []).map(f => f.date)].filter(Boolean).sort()[0] || '';
+const vFin = v => [...(v.etapes || []).map(e => e.au), ...(v.vols || []).map(f => f.date)].filter(Boolean).sort().at(-1) || '';
+const vPast = v => !!vFin(v) && vFin(v) < today();
+const vDives = v => done().filter(d => d.date && d.date >= vDeb(v) && d.date <= vFin(v) && (!v.zone || BZ.siteZone(d.site) === v.zone))
+  .sort((a, b) => ((a.date || '') + (a.heure || '')).localeCompare((b.date || '') + (b.heure || '')));
+const zNom = id => (BZ.zoneById(id) || {}).nom || id || '';
+function vCard(v) {
+  const n = vDives(v).length, ph = (v.photos || []).length;
+  return `<button type="button" class="cp-vc" data-v="${esc(v.id)}" aria-pressed="${v.id === vSel}"><b>${esc(v.nom || 'Sans nom')}</b>
+    <span>${vDeb(v) ? fDate(vDeb(v), { day: 'numeric', month: 'short' }) + ' → ' + fDate(vFin(v), { day: 'numeric', month: 'short', year: 'numeric' }) : 'Dates à définir'}</span>
+    <small>${[zNom(v.zone), n ? n + ' plongée' + (n > 1 ? 's' : '') : '', ph ? ph + ' photo' + (ph > 1 ? 's' : '') : ''].filter(Boolean).join(' · ')}</small></button>`;
+}
 function renderVoy() {
   if (PUBLIC) return;
-  const v = voyages[0];
-  if (!v) { secVoy.innerHTML = `<div class="card"><h3>Voyages</h3><p class="cp-note">${ro() ? 'Aucun voyage.' : 'Chargement…'}</p></div>`; return; }
-  const today = new Date().toISOString().slice(0, 10), deb = v.etapes[0]?.du || v.vols[0]?.date, fin = v.etapes.at(-1)?.au || v.vols.at(-1)?.date;
-  const j = nightBetween(today, deb), nfs = noFly(v), R = ro();
-  const vw = warnHTML(expiries(), fin, 'la fin du voyage');
-  const items = [...(v.etapes || []).map(e => ({ k: 'e', date: e.du, e })), ...(v.vols || []).map(f => ({ k: 'v', date: f.date, f }))].sort((a, b) => a.date.localeCompare(b.date) || (a.k === 'v' ? -1 : 1));
-  const lw = lastWeights(v.zone);
-  secVoy.innerHTML = `<div class="card"><div class="listhead"><div><span class="cp-k">${j > 0 ? 'Dans ' + j + ' jours' : j > -nightBetween(deb, fin) ? 'En cours' : 'Terminé'} · ${fDate(deb, { day: 'numeric', month: 'long' })} → ${fDate(fin)}</span><h3>${esc(v.nom)}</h3></div>
-      ${R ? '' : `<button class="btn" type="button" id="cpVEd">${vEdit ? 'Terminer' : 'Modifier les étapes'}</button>`}</div>
-      ${v.aVerifier ? '<div class="cp-warn a" style="margin-top:10px"><b>Dates et vols à vérifier</b><span>Étapes reconstituées d\'après le projet : corrigez-les avec « Modifier les étapes », ajoutez les heures de vol pour un calcul précis.</span></div>' : ''}
-      <div id="cpVBody" style="margin-top:8px"></div></div>
-    <div class="cp-grid">
+  const R = ro();
+  const up = voyages.filter(v => !vPast(v)).sort((a, b) => vDeb(a).localeCompare(vDeb(b))), past = voyages.filter(vPast).sort((a, b) => vDeb(b).localeCompare(vDeb(a)));
+  let v = voyages.find(x => x.id === vSel) || (vEdit === 'new' ? null : up[0] || past[0]);
+  if (v) vSel = v.id;
+  secVoy.innerHTML = `<div class="card"><div class="listhead"><div><span class="cp-k">Carnet de voyages</span><h3>Mes voyages</h3></div>
+      ${R ? '' : '<div class="row"><button class="btn" type="button" id="cpVAuto">Depuis le carnet</button><button class="btn pri" type="button" id="cpVNew">+ Nouveau voyage</button></div>'}</div>
+      ${up.length ? `<span class="cp-k" style="display:block;margin-top:12px">À venir</span><div class="cp-vl">${up.map(vCard).join('')}</div>` : ''}
+      ${past.length ? `<span class="cp-k" style="display:block;margin-top:12px">Passés</span><div class="cp-vl">${past.map(vCard).join('')}</div>` : ''}
+      ${!voyages.length ? '<p class="cp-note" style="margin-top:8px">Aucun voyage pour l’instant.</p>' : ''}</div>
+    <div id="cpVOne" class="cp-sec"></div>`;
+  secVoy.querySelectorAll('.cp-vc').forEach(b => b.onclick = () => { vSel = b.dataset.v; lsS('cp-voy', vSel); vEdit = false; renderVoy(); });
+  const nb = $('cpVNew'); if (nb) nb.onclick = () => { vEdit = 'new'; vSel = null; renderVoy(); };
+  const ab = $('cpVAuto'); if (ab) ab.onclick = autoVoyages;
+  const one = $('cpVOne');
+  if (vEdit === 'new') { one.innerHTML = '<div class="card"><h3>Nouveau voyage</h3><div id="cpVBody" style="margin-top:8px"></div></div>';
+    paintVoyEdit($('cpVBody'), { id: null, nom: '', zone: BZ.zone() ? BZ.zone().id : '', etapes: [{ lieu: '', du: '', au: '', heb: '', plongee: true }], vols: [], check: {} }); return; }
+  if (!v) return;
+  const deb = vDeb(v), fin = vFin(v), passe = vPast(v), j = deb ? nightBetween(today(), deb) : null, nfs = noFly(v);
+  const items = [...(v.etapes || []).map(e => ({ k: 'e', date: e.du, e })), ...(v.vols || []).map(f => ({ k: 'v', date: f.date, f }))].sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.k === 'v' ? -1 : 1));
+  const ds = vDives(v);
+  const head = `<div class="card"><div class="listhead"><div><span class="cp-k">${deb ? (passe ? 'Terminé' : j > 0 ? 'Dans ' + j + ' jours' : 'En cours') + ' · ' + fDate(deb, { day: 'numeric', month: 'long' }) + ' → ' + fDate(fin) : 'Dates à définir'}${v.zone ? ' · ' + esc(zNom(v.zone)) : ''}</span><h3>${esc(v.nom)}</h3></div>
+      ${R ? '' : `<button class="btn" type="button" id="cpVEd">${vEdit ? 'Terminer' : 'Modifier'}</button>`}</div>
+      ${v.aVerifier && !passe ? '<div class="cp-warn a" style="margin-top:10px"><b>Dates et vols à vérifier</b><span>Étapes reconstituées d\'après le projet : corrigez-les avec « Modifier », ajoutez les heures de vol pour un calcul précis.</span></div>' : ''}
+      <div id="cpVBody" style="margin-top:8px"></div></div>`;
+  const photos = `<div class="card cp-sec" style="gap:8px"><span class="cp-k">Photos du voyage${(v.photos || []).length ? ' · ' + v.photos.length : ''}</span><div class="cp-ph" id="cpVPh"></div><p class="cp-note" id="cpVPhMsg" role="status"></p></div>`;
+  let rest = '';
+  if (passe) {
+    const min = ds.reduce((a, d) => a + (+d.duree || 0), 0), deep = ds.filter(d => d.prof != null).sort((a, b) => b.prof - a.prof)[0];
+    const fa = new Map(); ds.forEach(d => (d.faune || []).forEach(f => fa.set(f, (fa.get(f) || 0) + 1)));
+    rest = `<div class="cp-grid"><div class="card cp-sec" style="gap:10px"><span class="cp-k">Bilan plongée</span>
+        ${ds.length ? `<div class="cp-tiles" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="cp-tile"><span>Plongées</span><b>${ds.length}</b><small>${(k => k + ' site' + (k > 1 ? 's' : ''))(new Set(ds.map(d => d.site)).size)}</small></div>
+          <div class="cp-tile"><span>Sous l'eau</span><b>${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}</b></div><div class="cp-tile"><span>Prof. max</span><b>${deep ? nf(deep.prof) + ' m' : '–'}</b><small>${deep ? esc(BZ.siteName(deep.site) || '') : ''}</small></div></div>
+          ${fa.size ? `<div class="cp-chips">${[...fa].sort((a, b) => b[1] - a[1]).map(([f, n]) => `<span class="chip" style="cursor:default">${esc(f)} · ${n}</span>`).join('')}</div>` : ''}
+          <div class="cp-rec">${ds.map(d => `<button type="button" data-d="${d.id}"><span class="n">${esc(BZ.siteName(d.site) || d.site)}</span><span class="v">${nf(d.prof)} m · ${d.duree ?? '–'} min</span><span class="l">${fDate(d.date, { weekday: 'short', day: 'numeric', month: 'short' })}${d.heure ? ' · ' + d.heure : ''}</span></button>`).join('')}</div>`
+          : '<p class="cp-note">Aucune plongée du carnet sur ces dates' + (v.zone ? ' dans cette zone' : '') + '.</p>'}</div>${photos}</div>`;
+  } else {
+    const vw = warnHTML(expiries(), fin, 'la fin du voyage'), lw = lastWeights(v.zone), tst = (v.etapes || []).filter(e => e.plongee && e.lat != null);
+    rest = `<div class="cp-grid">
       <div class="card cp-sec" style="gap:8px"><span class="cp-k">Avion après plongée</span>
         ${nfs.map(n => `<div class="cp-warn a"><b>${esc(n.etape)} : dernière journée de plongée le ${fDate(n.lastDay, { weekday: 'long', day: 'numeric', month: 'long' })}</b><span>Vol ${esc(n.vol.de)} → ${esc(n.vol.a)} le ${fDate(n.vol.date, { day: 'numeric', month: 'long' })}${n.vol.heure ? ' à ' + n.vol.heure : ' (heure inconnue, 8 h supposé)'} · fin de plongée au plus tard ${n.lim.toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>`).join('') || '<p class="cp-note">Aucun vol juste après une étape de plongée.</p>'}
         <p class="cp-note">Règle appliquée : 24 h entre la dernière plongée et le décollage (recommandation DAN : 12 h minimum pour une plongée, 18 h pour plusieurs jours de plongée ; 24 h par prudence). Les petits avions inter-îles comptent aussi.</p>
         ${vw.length ? '<span class="cp-k" style="margin-top:6px">Validités PADI pour le voyage</span>' + vw.map(x => `<div class="cp-warn ${x.c}"><b>${esc(x.t)}</b></div>`).join('') : '<div class="cp-warn g"><b>EFR et certificats médicaux valides pour le voyage</b></div>'}</div>
-      <div class="card cp-sec" style="gap:8px"><span class="cp-k">Marées et courant dans les passes</span><div class="cp-chips" id="cpTSt"></div><div id="cpTide"><p class="cp-note">Chargement…</p></div>
-        <p class="cp-note">Marée montante : le courant entre dans le lagon (eau claire, plongée « entrante » dans les passes de Tiputa ou Avatoru). Marée descendante : courant sortant, eau plus trouble. À confirmer avec le centre de plongée sur place.</p></div>
+      ${tst.length ? `<div class="card cp-sec" style="gap:8px"><span class="cp-k">Marées et courant dans les passes</span><div class="cp-chips" id="cpTSt"></div><div id="cpTide"><p class="cp-note">Chargement…</p></div>
+        <p class="cp-note">Marée montante : le courant entre dans le lagon (eau claire, plongée « entrante » dans les passes). Marée descendante : courant sortant, eau plus trouble. À confirmer avec le centre de plongée sur place.</p></div>` : ''}
       <div class="card cp-sec" style="gap:8px"><span class="cp-k">Dernier lestage connu</span>
-        ${lw.length ? lw.map(({ z, d }) => `<button type="button" class="cp-rec" style="all:unset;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:6px 0;border-top:1px solid var(--line)" data-d="${d.id}"><span><b>${esc((BZ.zoneById(z) || {}).nom || z)}</b><br><span class="cp-note">${esc(BZ.siteName(d.site) || '')} · ${fDate(d.date)}</span></span><span style="text-align:right;font-variant-numeric:tabular-nums">Chris ${nf(d.lestChris)} kg<br>Véro ${nf(d.lestVero)} kg</span></button>`).join('') : '<p class="cp-note">Aucun lestage noté dans le carnet.</p>'}
-        <p class="cp-note">Eau de mer tropicale et 3 mm : repartez du lestage de Bonaire ou Punta Cana, puis vérifiez à la première plongée.</p></div>
+        ${lw.length ? lw.map(({ z, d }) => `<button type="button" class="cp-rec" style="all:unset;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:6px 0;border-top:1px solid var(--line)" data-d="${d.id}"><span><b>${esc(zNom(z))}</b><br><span class="cp-note">${esc(BZ.siteName(d.site) || '')} · ${fDate(d.date)}</span></span><span style="text-align:right;font-variant-numeric:tabular-nums">Chris ${nf(d.lestChris)} kg<br>Véro ${nf(d.lestVero)} kg</span></button>`).join('') : '<p class="cp-note">Aucun lestage noté dans le carnet.</p>'}</div>
       <div class="card cp-sec" style="gap:8px"><span class="cp-k">Valise plongée · ${CHECK.filter(([k]) => (v.check || {})[k]).length}/${CHECK.length}</span><div class="cp-chk">${CHECK.map(([k, l]) => `<label class="${(v.check || {})[k] ? 'ok' : ''}"><input type="checkbox" data-k="${k}" ${(v.check || {})[k] ? 'checked' : ''} ${R ? 'disabled' : ''}><span>${esc(l)}</span></label>`).join('')}</div></div>
-    </div>`;
+      ${photos}</div>`;
+    setTimeout(() => {
+      if (!$('cpTSt')) return; if (!tst.some(e => e.lieu === tideSt)) tideSt = (tst.find(e => /rangiroa/i.test(e.lieu)) || tst[0] || {}).lieu;
+      $('cpTSt').innerHTML = tst.map(e => `<button class="chip" type="button" aria-pressed="${e.lieu === tideSt}" data-t="${esc(e.lieu)}">${esc(e.lieu)}</button>`).join('');
+      $('cpTSt').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tideSt = b.dataset.t; renderVoy(); });
+      const te = tst.find(e => e.lieu === tideSt); if (te) loadTide(te, deb, fin); }, 0);
+  }
+  one.innerHTML = head + rest;
   const body = $('cpVBody');
-  if (vEdit) paintVoyEdit(body, v); else body.innerHTML = `<div class="cp-tl">${items.map(it => it.k === 'v'
+  if (vEdit) paintVoyEdit(body, v); else body.innerHTML = items.length ? `<div class="cp-tl">${items.map(it => it.k === 'v'
       ? `<div class="cp-st vol"><span class="d">${fDate(it.f.date, { day: 'numeric', month: 'short' })}${it.f.heure ? '<br>' + it.f.heure : ''}</span><span class="p"><b>${esc(it.f.de)} → ${esc(it.f.a)}</b>${it.f.ref ? `<small>${esc(it.f.ref)}</small>` : ''}</span></div>`
-      : `<div class="cp-st"><span class="d">${fDate(it.e.du, { day: 'numeric', month: 'short' })}<br>→ ${fDate(it.e.au, { day: 'numeric', month: 'short' })}</span><span class="p"><b>${esc(it.e.lieu)}</b><small>${esc(it.e.heb || '')} · ${nightBetween(it.e.du, it.e.au)} nuit(s)${it.e.plongee ? ' · plongée' : ''}</small></span>${(() => { const n = nfs.find(n => n.etape === it.e.lieu && n.vol.date === it.e.au); return n ? `<span class="nf">Dernière plongée : ${fDate(n.lastDay, { weekday: 'short', day: 'numeric', month: 'short' })}</span>` : ''; })()}</div>`).join('')}</div>`;
+      : `<div class="cp-st"><span class="d">${fDate(it.e.du, { day: 'numeric', month: 'short' })}<br>→ ${fDate(it.e.au, { day: 'numeric', month: 'short' })}</span><span class="p"><b>${esc(it.e.lieu)}</b><small>${[it.e.heb, nightBetween(it.e.du, it.e.au) + ' nuit(s)', it.e.plongee ? 'plongée' : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${(() => { const n = !passe && nfs.find(n => n.etape === it.e.lieu && n.vol.date === it.e.au); return n ? `<span class="nf">Dernière plongée : ${fDate(n.lastDay, { weekday: 'short', day: 'numeric', month: 'short' })}</span>` : ''; })()}</div>`).join('')}</div>` : '<p class="cp-note">Pas encore d’étapes.</p>';
   const eb = $('cpVEd'); if (eb) eb.onclick = () => { vEdit = !vEdit; renderVoy(); };
-  secVoy.querySelectorAll('[data-d]').forEach(b => b.onclick = () => BZ.openDive(b.dataset.d));
-  secVoy.querySelectorAll('.cp-chk input').forEach(c => c.onchange = () => saveVoy({ ...v, check: { ...(v.check || {}), [c.dataset.k]: c.checked } }));
-  const tst = v.etapes.filter(e => e.plongee && e.lat != null); if (!tst.some(e => e.lieu === tideSt)) tideSt = (tst.find(e => /rangiroa/i.test(e.lieu)) || tst[0] || {}).lieu;
-  $('cpTSt').innerHTML = tst.map(e => `<button class="chip" type="button" aria-pressed="${e.lieu === tideSt}" data-t="${esc(e.lieu)}">${esc(e.lieu)}</button>`).join('');
-  $('cpTSt').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tideSt = b.dataset.t; renderVoy(); });
-  const te = tst.find(e => e.lieu === tideSt); if (te) loadTide(te, deb, fin);
+  one.querySelectorAll('[data-d]').forEach(b => b.onclick = () => BZ.openDive(b.dataset.d));
+  one.querySelectorAll('.cp-chk input').forEach(c => c.onchange = () => saveVoy({ ...v, check: { ...(v.check || {}), [c.dataset.k]: c.checked } }));
+  paintVoyPhotos(v);
+}
+async function paintVoyPhotos(v) {
+  const box = $('cpVPh'); if (!box) return; const ph = v.photos || [], R = ro();
+  box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="Photo ${i + 1} du voyage" data-i="${i}">${R ? '' : `<button class="del" type="button" aria-label="Supprimer la photo ${i + 1}" data-del="${i}">×</button>`}</div>`).join('') +
+    (R ? '' : '<label class="add">+ Ajouter des photos<input type="file" accept="image/*" multiple hidden id="cpVPhIn"></label>');
+  if (!ph.length && R) box.innerHTML = '<span class="cp-note">Aucune photo.</span>';
+  if (ph.length) { const urls = await signed(ph); box.querySelectorAll('img[data-i]').forEach(im => { const u = urls[+im.dataset.i]; if (u) { im.src = u; im.onclick = () => lightbox(u); } }); }
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const i = +b.dataset.del, p = ph[i];
+    if (b.dataset.arm !== '1') { b.dataset.arm = '1'; b.textContent = '?'; b.style.background = 'var(--red)'; return; }
+    try { await store().remove([p]); } catch {} await saveVoy({ ...v, photos: ph.filter((_, k) => k !== i) }); });
+  const inp = $('cpVPhIn'); if (inp) inp.onchange = async () => {
+    const files = [...inp.files].slice(0, 30), msg = $('cpVPhMsg'); if (!files.length || !store()) return;
+    const add = [];
+    for (let k = 0; k < files.length; k++) { msg.textContent = `Envoi ${k + 1}/${files.length}…`;
+      try { const b = await shrink(files[k]); const path = `${window.CP.carnet}/voyages/${v.id}/${uuid()}.jpg`;
+        const { error } = await store().upload(path, b, { contentType: 'image/jpeg', upsert: false }); if (error) throw error; add.push(path); }
+      catch (e) { msg.textContent = 'Envoi impossible : ' + (e.message || e); } }
+    if (add.length) { const cur = voyages.find(x => x.id === v.id) || v; await saveVoy({ ...cur, photos: [...(cur.photos || []), ...add] }); toast(add.length + ' photo(s) ajoutée(s)'); }
+  };
+}
+function autoVoyages() {
+  const ds = done().filter(d => d.date && BZ.siteZone(d.site) && BZ.siteZone(d.site) !== 'france').sort((a, b) => a.date.localeCompare(b.date));
+  const groups = []; ds.forEach(d => { const z = BZ.siteZone(d.site), g = groups.find(g => g.z === z && nightBetween(g.au, d.date) <= 5 && d.date >= g.du);
+    if (g) g.au = d.date > g.au ? d.date : g.au; else groups.push({ z, du: d.date, au: d.date }); });
+  const fresh = groups.filter(g => !voyages.some(v => (!v.zone || v.zone === g.z) && vDeb(v) <= g.au && vFin(v) >= g.du));
+  if (!fresh.length) { toast('Tous les séjours du carnet ont déjà leur voyage'); return; }
+  const noms = fresh.map(g => `${zNom(g.z)} ${fDate(g.du, { month: 'long', year: 'numeric' })}`);
+  if (!confirm('Créer ces voyages à partir de vos plongées ?\n\n' + noms.join('\n') + '\n\n(La France, plongées locales, n’est pas comptée.)')) return;
+  fresh.forEach((g, i) => saveVoy({ id: 'v-' + g.z + '-' + g.du, nom: noms[i][0].toUpperCase() + noms[i].slice(1), zone: g.z,
+    etapes: [{ lieu: zNom(g.z), du: g.du, au: g.au, heb: '', plongee: true }], vols: [], check: {} }));
+  toast(fresh.length + ' voyage(s) créé(s)');
 }
 function paintVoyEdit(body, v) {
-  const E = JSON.parse(JSON.stringify(v));
+  const E = JSON.parse(JSON.stringify(v)), isNew = !v.id;
+  const zones = BZ.zones ? BZ.zones() : [];
   const draw = () => {
-    body.innerHTML = `<span class="cp-k">Étapes</span><div class="cp-ed" style="margin:6px 0 12px">${E.etapes.map((e, i) => `<div class="r" data-i="${i}">
+    body.innerHTML = `<div class="cp-ed" style="margin-bottom:12px"><div class="r" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
+        <input data-g="nom" value="${esc(E.nom || '')}" aria-label="Nom du voyage" placeholder="Nom du voyage (ex. Égypte 2027)">
+        <select data-g="zone" class="cp-sel" aria-label="Zone"><option value="">Zone : aucune</option>${zones.map(z => `<option value="${esc(z.id)}"${z.id === E.zone ? ' selected' : ''}>${esc(z.nom)}</option>`).join('')}</select></div></div>
+      <span class="cp-k">Étapes</span><div class="cp-ed" style="margin:6px 0 12px">${E.etapes.map((e, i) => `<div class="r" data-i="${i}">
         <input data-f="lieu" value="${esc(e.lieu)}" aria-label="Lieu" placeholder="Lieu"><input type="date" data-f="du" value="${e.du}" aria-label="Arrivée"><input type="date" data-f="au" value="${e.au}" aria-label="Départ">
         <input data-f="heb" value="${esc(e.heb || '')}" aria-label="Hébergement" placeholder="Hébergement"><label class="pl"><input type="checkbox" data-f="plongee" ${e.plongee ? 'checked' : ''} style="width:18px;height:18px">Plongée</label>
         <button class="btn danger" type="button" data-rm="e${i}" aria-label="Supprimer l'étape">×</button></div>`).join('')}
@@ -549,18 +633,29 @@ function paintVoyEdit(body, v) {
         <input data-f="de" value="${esc(f.de)}" aria-label="Départ" placeholder="De"><input data-f="a" value="${esc(f.a)}" aria-label="Arrivée" placeholder="À"><input data-f="ref" value="${esc(f.ref || '')}" aria-label="N° de vol" placeholder="N° vol">
         <button class="btn danger" type="button" data-rm="v${i}" aria-label="Supprimer le vol">×</button></div>`).join('')}
         <button class="btn" type="button" data-add="v">+ Vol</button></div>
-      <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-a="c">Annuler</button><button class="btn pri" type="button" data-a="s">Enregistrer</button></div>`;
+      <p class="cp-note" id="cpVErr" role="status"></p>
+      <div class="row" style="justify-content:space-between">${isNew ? '<span></span>' : '<button class="btn danger" type="button" data-a="del">Supprimer le voyage</button>'}<div class="row"><button class="btn" type="button" data-a="c">Annuler</button><button class="btn pri" type="button" data-a="s">Enregistrer</button></div></div>`;
+    body.querySelectorAll('[data-g]').forEach(inp => inp.oninput = inp.onchange = () => E[inp.dataset.g] = inp.value);
     body.querySelectorAll('[data-i] [data-f],[data-v] [data-f]').forEach(inp => inp.oninput = inp.onchange = () => {
       const r = inp.closest('[data-i],[data-v]'), arr = r.dataset.i != null ? E.etapes[+r.dataset.i] : E.vols[+r.dataset.v];
       arr[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value; });
     body.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const k = b.dataset.rm; (k[0] === 'e' ? E.etapes : E.vols).splice(+k.slice(1), 1); draw(); });
     body.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { if (b.dataset.add === 'e') { const l = E.etapes.at(-1); E.etapes.push({ lieu: '', du: l ? l.au : '', au: l ? l.au : '', heb: '', plongee: true }); } else E.vols.push({ date: E.etapes.at(-1)?.au || '', heure: '', de: '', a: '', ref: '' }); draw(); });
     body.querySelector('[data-a="c"]').onclick = () => { vEdit = false; renderVoy(); };
+    const del = body.querySelector('[data-a="del"]'); if (del) del.onclick = async () => {
+      if (del.dataset.arm !== '1') { del.dataset.arm = '1'; del.textContent = 'Confirmer la suppression'; return; }
+      try { if ((v.photos || []).length && store()) await store().remove(v.photos); } catch {}
+      try { await vRef.doc(v.id).delete(); } catch { toast('Suppression impossible'); }
+      vSel = null; lsS('cp-voy', null); vEdit = false; renderVoy(); };
     body.querySelector('[data-a="s"]').onclick = async () => {
       const COORD = { tahiti: [-17.535, -149.57], 'taha a': [-16.625, -151.5], tahaa: [-16.625, -151.5], rangiroa: [-14.97, -147.632], tetiaroa: [-17.01, -149.56], fakarava: [-16.06, -145.62], moorea: [-17.53, -149.83], 'bora bora': [-16.5, -151.74], raiatea: [-16.83, -151.43] };
-      E.etapes.forEach(e => { const c = COORD[norm(e.lieu)]; if (c && (e.lat == null || e._lieu !== e.lieu)) { e.lat = c[0]; e.lon = c[1]; } });
+      E.etapes.forEach(e => { const c = COORD[norm(e.lieu)]; if (c) { e.lat = c[0]; e.lon = c[1]; } });
       E.etapes = E.etapes.filter(e => e.lieu && e.du && e.au); E.vols = E.vols.filter(f => f.date);
-      E.aVerifier = false; vEdit = false; await saveVoy(E); };
+      E.nom = (E.nom || '').trim();
+      if (!E.nom) { $('cpVErr').textContent = 'Donnez un nom au voyage.'; return; }
+      if (!E.etapes.length && !E.vols.length) { $('cpVErr').textContent = 'Ajoutez au moins une étape avec ses dates.'; return; }
+      if (isNew) E.id = 'v-' + norm(E.nom).replace(/ /g, '-').slice(0, 30) + '-' + Date.now().toString(36);
+      E.aVerifier = false; vEdit = false; vSel = E.id; lsS('cp-voy', E.id); await saveVoy(E); renderVoy(); };
   };
   draw();
 }
