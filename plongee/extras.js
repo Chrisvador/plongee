@@ -95,24 +95,15 @@ document.head.append(el('style', null, `
 .cp-imp{display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto}
 .cp-imp .r{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:8px;align-items:center;font-size:13.5px}
 .cp-imp select{font:13px var(--f-body);padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);min-width:0;width:100%}
+.cp-deco{display:flex;flex-direction:column;gap:6px}
+.cp-ban{margin:0 0 12px}
+.cp-ban-in{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.cp-ban-in>div{flex:1 1 140px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;gap:2px}
+.cp-ban-in span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cp-ban-in b{font-size:15px}
+.cp-ban .cp-note{margin-top:6px}
 .cp-faune{display:flex;gap:8px;align-items:center;margin-top:8px}
 .cp-faune select{flex:1;min-width:0}
-#cpPrint{display:none}
-@media print{
-  @page{size:A4 landscape;margin:11mm}
-  body>*:not(#cpPrint){display:none!important}
-  body{background:#fff!important}
-  #cpPrint{display:block;color:#000;font:9.5pt "Atkinson Hyperlegible",system-ui,sans-serif}
-  #cpPrint h1{font:700 16pt "Bricolage Grotesque",system-ui,sans-serif;margin:0 0 2mm}
-  #cpPrint p{margin:0 0 4mm;color:#333}
-  #cpPrint table{width:100%;border-collapse:collapse}
-  #cpPrint th,#cpPrint td{border:0.6pt solid #888;padding:1.6mm 1.8mm;vertical-align:top;text-align:left}
-  #cpPrint th{background:#eef3f5;font-size:8pt;text-transform:uppercase;letter-spacing:.05em}
-  #cpPrint td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-  #cpPrint td.sig{width:30mm}
-  #cpPrint tr{break-inside:avoid}
-  #cpPrint thead{display:table-header-group}
-}
 html.public-view [data-v="padi"],html.public-view [data-v="voyages"],html.public-view [data-v="plan"]{display:none}
 `));
 
@@ -127,7 +118,7 @@ function addTab(v, label, before) {
 const secStats = addTab('stats', 'Statistiques', 'plan');
 const secVoy = addTab('voyages', 'Voyages', 'ndl');
 let curView = 'map';
-document.addEventListener('cp-view', e => { curView = e.detail; lsS('cp-view2', e.detail);
+document.addEventListener('cp-view', e => { curView = e.detail; lsS('cp-view2', e.detail); if (typeof paintDecoBan === 'function') paintDecoBan();
   if (e.detail === 'stats') renderStats(); if (e.detail === 'voyages') renderVoy(); });
 const saved = lsG('cp-view2');
 if ((saved === 'stats' || (saved === 'voyages' && !PUBLIC))) setTimeout(() => views.querySelector(`[data-v="${saved}"]`).click(), 0);
@@ -215,6 +206,7 @@ function paintDive() {
     <div class="cp-met">${met.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
     ${profileSVG(d) || (d.statut === 'faite' && !R ? '<p class="cp-note">Pas de profil : importez votre export Shearwater (bouton « Shearwater » de la liste).</p>' : '')}
     ${d.courbe && d.courbe.t && Math.max(...d.courbe.t) - Math.min(...d.courbe.t) >= 1 ? '<div class="cp-leg"><span><i style="background:var(--done)"></i>Profondeur</span><span><i style="background:var(--amber)"></i>Température</span></div>' : ''}
+    ${d.statut === 'faite' ? decoHTML(d) : ''}
     ${d.notes ? `<p style="margin:0;white-space:pre-wrap;font-size:14px">${esc(d.notes)}</p>` : ''}
     <div><span class="cp-k">Faune observée</span><div class="cp-chips" id="cpFa" style="margin-top:6px">${R
       ? (fa.length ? fa.map(f => `<span class="chip" aria-pressed="true" style="cursor:default">${esc(f)}</span>`).join('') : '<span class="cp-note">Rien de noté.</span>')
@@ -384,7 +376,7 @@ function renderStats() {
   secStats.innerHTML = `<div class="card"><div class="listhead"><div><span class="cp-k">Carnet</span><h3>Statistiques</h3></div>
       <div class="row"><select class="cp-sel" id="cpStZ" aria-label="Zone"><option value="all">Toutes zones</option>${zones.map(z => `<option value="${z}">${esc(zN(z))}</option>`).join('')}</select>
       <select class="cp-sel" id="cpStY" aria-label="Année"><option value="all">Toutes années</option>${yrs.map(y => `<option>${y}</option>`).join('')}</select>
-      <button class="btn" type="button" id="cpPrintBtn">Imprimer le carnet</button></div></div>
+      <button class="btn" type="button" id="cpPrintBtn">Carnet en PDF</button></div></div><div id="cpPdfLink" class="row" style="justify-content:flex-end"></div>
     <div class="cp-tiles" style="margin-top:14px">
       <div class="cp-tile"><span>Plongées</span><b>${ds.length}</b><small>${sites.size} sites</small></div>
       <div class="cp-tile"><span>Sous l'eau</span><b>${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}</b><small>moy. ${ds.length ? Math.round(min / ds.length) : 0} min</small></div>
@@ -402,17 +394,46 @@ function renderStats() {
   $('cpStY').value = yrs.includes(stYear) ? stYear : 'all'; $('cpStZ').value = zones.includes(stZone) ? stZone : 'all';
   $('cpStY').onchange = e => { stYear = e.target.value; renderStats(); }; $('cpStZ').onchange = e => { stZone = e.target.value; renderStats(); };
   secStats.querySelectorAll('[data-d]').forEach(b => b.onclick = () => BZ.openDive(b.dataset.d));
-  $('cpPrintBtn').onclick = () => printLog(ds);
+  $('cpPrintBtn').onclick = e => printLog(ds, e.currentTarget); loadPdf().catch(() => {});
 }
-function printLog(ds) {
-  let p = $('cpPrint'); if (!p) { p = el('div'); p.id = 'cpPrint'; document.body.append(p); }
+const PDFJS = ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'];
+let pdfP = null;
+const loadScript = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script')); document.head.append(s); });
+const loadPdf = () => pdfP || (pdfP = (async () => { for (const u of PDFJS) await loadScript(u); return window.jspdf.jsPDF; })().catch(e => { pdfP = null; throw e; }));
+const pdfTxt = s => String(s ?? '').replace(/[→]/g, '>').replace(/[^\x00-\xFF’‘“”–—…€]/g, '');
+let pdfLast = null;
+function buildPdf(JsPDF, ds) {
   const rows = [...ds].sort((a, b) => ((a.date || '') + (a.heure || '')).localeCompare((b.date || '') + (b.heure || '')));
   const per = [stZone !== 'all' ? (BZ.zoneById(stZone) || {}).nom : null, stYear !== 'all' ? stYear : null].filter(Boolean).join(' · ');
-  p.innerHTML = `<h1>Carnet de plongée — Christian &amp; Véro</h1><p>${per ? esc(per) + ' · ' : ''}${rows.length} plongées · édité le ${fDate(new Date().toISOString().slice(0, 10))}</p>
-    <table><thead><tr><th>N°</th><th>Date</th><th>Site</th><th>Prof.</th><th>Durée</th><th>Eau</th><th>Gaz</th><th>Lest C / V</th><th>Remarques</th><th>Visa binôme / centre</th></tr></thead><tbody>
-    ${rows.map((d, i) => `<tr><td class="n">${d.numero || i + 1}</td><td>${fDate(d.date)}${d.heure ? '<br>' + d.heure : ''}</td><td><b>${esc(BZ.siteName(d.site) || d.site)}</b><br>${esc(zoneName(d.site))}</td><td class="n">${nf(d.prof)} m</td><td class="n">${d.duree ?? '–'} min</td><td class="n">${d.tmin ?? d.temp ?? '–'} °C</td><td>${esc(d.gaz || '')}</td><td class="n">${nf(d.lestChris)} / ${nf(d.lestVero)}</td><td>${esc([(d.faune || []).join(', '), d.notes].filter(Boolean).join(' — ').slice(0, 180))}</td><td class="sig"></td></tr>`).join('')}
-    </tbody></table>`;
-  setTimeout(() => window.print(), 50);
+  const doc = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(pdfTxt('Carnet de plongée — Christian & Véro'), 12, 14);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(pdfTxt(`${per ? per + ' · ' : ''}${rows.length} plongées · édité le ${fDate(new Date().toISOString().slice(0, 10))}`), 12, 19.5);
+  doc.autoTable({ startY: 23, margin: { left: 10, right: 10, top: 12, bottom: 12 }, theme: 'grid',
+    head: [['N°', 'Date', 'Site', 'Prof.', 'Durée', 'Eau', 'Gaz', 'Lest C / V', 'Remarques', 'Visa binôme / centre']],
+    body: rows.map((d, i) => [d.numero || i + 1, fDate(d.date) + (d.heure ? '\n' + d.heure : ''), (BZ.siteName(d.site) || d.site) + '\n' + zoneName(d.site),
+      d.prof != null ? nf(d.prof) + ' m' : '–', d.duree != null ? d.duree + ' min' : '–', (d.tmin ?? d.temp) != null ? (d.tmin ?? d.temp) + ' °C' : '–', d.gaz || '', d.lestChris != null || d.lestVero != null ? nf(d.lestChris) + ' / ' + nf(d.lestVero) : '',
+      [(d.faune || []).join(', '), d.notes].filter(Boolean).join(' — ').slice(0, 220), ''].map(pdfTxt)),
+    styles: { font: 'helvetica', fontSize: 7.5, cellPadding: 1.4, lineColor: 160, lineWidth: .15, textColor: 20, valign: 'top' },
+    headStyles: { fillColor: [232, 240, 243], textColor: 30, fontStyle: 'bold', fontSize: 7 },
+    columnStyles: { 0: { halign: 'right', cellWidth: 9 }, 1: { cellWidth: 20 }, 2: { cellWidth: 40 }, 3: { halign: 'right', cellWidth: 13 }, 4: { halign: 'right', cellWidth: 14 }, 5: { halign: 'right', cellWidth: 12 }, 6: { cellWidth: 17 }, 7: { halign: 'right', cellWidth: 16 }, 9: { cellWidth: 34, minCellHeight: 11 } },
+    didDrawPage: () => { const n = doc.internal.getNumberOfPages(); doc.setFontSize(8); doc.setTextColor(120); doc.text('Page ' + n, 287, 205, { align: 'right' }); } });
+  const name = 'carnet-plongee' + (stYear !== 'all' ? '-' + stYear : '') + '.pdf';
+  return new File([doc.output('blob')], name, { type: 'application/pdf' });
+}
+async function printLog(ds, btn) {
+  const lab = btn.textContent; btn.disabled = true; btn.textContent = 'Préparation…';
+  try {
+    const f = buildPdf(await loadPdf(), ds); pdfLast = f;
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      try { await navigator.share({ files: [f], title: 'Carnet de plongée' }); return; }
+      catch (e) { if (e.name === 'AbortError') return; }   // geste expiré : on propose le lien ci-dessous
+    }
+    const u = URL.createObjectURL(f), box = $('cpPdfLink');
+    if (box) box.innerHTML = `<a class="btn pri" href="${u}" download="${f.name}" target="_blank" rel="noopener">Ouvrir le PDF du carnet</a>`;
+    if (!navigator.share) { const a = document.createElement('a'); a.href = u; a.download = f.name; document.body.append(a); a.click(); a.remove(); }
+  } catch (e) { toast('PDF impossible : ' + (e.message || 'hors ligne ?')); }
+  finally { btn.disabled = false; btn.textContent = lab; }
 }
 
 /* ---------------- rappels PADI ---------------- */
@@ -570,9 +591,73 @@ async function loadTide(e, deb, fin) {
   } catch (err) { if ($('cpTide')) $('cpTide').innerHTML = '<p class="cp-note">Marées indisponibles pour le moment (hors ligne ?).</p>'; }
 }
 
+/* ---------------- décompression (Bühlmann ZHL-16C), désaturation, avion, apéro ---------------- */
+const ZH = [5, 8, 12.5, 18.5, 27, 38.3, 54.3, 77, 109, 146, 187, 239, 305, 390, 498, 635];
+const ZA = [1.1696, 1, .8618, .7562, .62, .5043, .441, .4, .375, .35, .3295, .3065, .2835, .261, .248, .2327];
+const ZB = [.5578, .6514, .7222, .7825, .8126, .8434, .8693, .891, .9092, .9222, .9319, .9403, .9477, .9544, .9602, .9653];
+const PS = 1.013, PW = .0627, PN0 = (PS - PW) * .79, DESAT = .05;
+const CFG = Object.assign({ apresPlongee: 4, avantPlongee: 12, avion: 24 }, lsG('cp-deco') || {});
+const zStep = (P, pamb, fn2, sec) => { const pi = (pamb - PW) * fn2; return P.map((p, i) => p + (pi - p) * (1 - 2 ** (-sec / 60 / ZH[i]))); };
+const zGF = P => Math.max(...P.map((p, i) => (p - PS) / ((ZA[i] + PS / ZB[i]) - PS))) * 100;
+const zEx = P => Math.max(...P.map(p => p - PN0));
+const fn2Of = g => { const m = /(\d{2})/.exec(g || ''); return /nitrox|ean/i.test(g || '') && m ? 1 - +m[1] / 100 : .79; };
+const dStart = d => d.date && d.heure ? new Date(d.date + 'T' + d.heure) : null;
+let decoCache = null;
+function decoAll() {
+  if (decoCache) return decoCache;
+  const ds = done().filter(d => dStart(d) && (d.courbe?.p?.length > 1 || d.prof != null && d.duree)).sort((a, b) => dStart(a) - dStart(b));
+  const out = new Map(); let P = Array(16).fill(PN0), tEnd = null;
+  ds.forEach((d, k) => {
+    const t0 = dStart(d); if (tEnd) P = zStep(P, PS, .79, Math.max(0, (t0 - tEnd) / 1e3));
+    const pre = zEx(P), fn2 = fn2Of(d.gaz);
+    let pts, pas;
+    if (d.courbe?.p?.length > 1) { pts = d.courbe.p; pas = d.courbe.pas || 30; }
+    else { const n = Math.max(2, Math.round(d.duree * 2)); pas = 30; pts = Array.from({ length: n }, (_, i) => i < 2 || i > n - 7 ? Math.min(d.prof, 5) : d.prof); }   // profil carré si pas de courbe
+    pts.forEach(z => P = zStep(P, PS + z / 10, fn2, pas));
+    tEnd = new Date(+t0 + pts.length * pas * 1e3);
+    const gf = zGF(P), lead = P.map(p => p - PN0).reduce((m, v, i, a) => v > a[m] ? i : m, 0);
+    let h = 0, Q = P; while (zEx(Q) > DESAT && h < 96 * 6) { Q = zStep(Q, PS, .79, 600); h++; }
+    const desat = new Date(+tEnd + h * 600e3), next = ds[k + 1] ? dStart(ds[k + 1]) : null;
+    const apero = new Date(Math.max(+tEnd + CFG.apresPlongee * 36e5, +desat));
+    out.set(d.id, { pre: Math.round(pre * 1000), gf: Math.round(gf), lead: lead + 1, tEnd, desat, avion: new Date(+tEnd + CFG.avion * 36e5), apero, next, profilCarre: !d.courbe });
+  });
+  return decoCache = out;
+}
+const fH = t => t.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ');
+const fDH = t => { const d0 = new Date(); d0.setHours(0, 0, 0, 0); const dd = Math.round((new Date(t).setHours(0, 0, 0, 0) - d0) / 864e5);
+  return (dd === 0 ? "aujourd'hui" : dd === 1 ? 'demain' : dd === -1 ? 'hier' : t.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })) + ' ' + fH(t); };
+function decoHTML(d) {
+  const x = decoAll().get(d.id); if (!x) return '';
+  const nx = x.next && x.next < x.apero ? `<br><span class="cp-note">Plongée suivante à ${fH(x.next)} : le compteur repart après elle.</span>` : '';
+  return `<div class="cp-deco"><span class="cp-k">Décompression${x.profilCarre ? ' · estimée (profil carré)' : ''}</span>
+    <div class="cp-met"><div><span>GF en sortie</span><b>${x.gf} %</b></div><div><span>Azote au départ</span><b>${x.pre} mbar</b></div>
+    <div><span>Désaturation</span><b>${fH(x.desat)}</b></div><div><span>Apéro dès</span><b>${fH(x.apero)}</b></div></div>
+    <p class="cp-note">Bühlmann ZHL-16C, compartiment directeur ${x.lead}. Avion : pas avant ${x.avion.toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.${nx}</p></div>`;
+}
+const decoBan = el('div', 'cp-ban'); $('v-map').before(decoBan);
+function paintDecoBan() {
+  if (PUBLIC || curView !== 'map') { decoBan.hidden = true; return; }
+  const now = new Date(), all = [...decoAll().entries()], last = all.at(-1), items = [];
+  if (last && now - last[1].tEnd < CFG.avion * 36e5) { const x = last[1];
+    items.push(['Désaturation', now >= x.desat ? 'faite' : fDH(x.desat)], ['Apéro', now >= x.apero ? 'possible' : 'dès ' + fDH(x.apero)], ['Avion', now >= x.avion ? 'possible' : 'pas avant ' + fDH(x.avion)]); }
+  const nextPlan = BZ.dives().filter(d => d.statut !== 'faite' && dStart(d) && dStart(d) > now && dStart(d) - now < 36 * 36e5).sort((a, b) => dStart(a) - dStart(b))[0];
+  if (nextPlan) { const lim = new Date(+dStart(nextPlan) - CFG.avantPlongee * 36e5);
+    items.push(['Dernier verre', now >= lim ? 'plus d’alcool avant la plongée de ' + fH(dStart(nextPlan)) : 'avant ' + fDH(lim)]); }
+  decoBan.hidden = !items.length;
+  decoBan.innerHTML = items.length ? `<div class="cp-ban-in">${items.map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join('')}
+    <button type="button" class="cp-x" aria-label="Réglages" id="cpDecoCfg" style="font-size:18px">⚙</button></div>
+    <p class="cp-note">Calcul selon le modèle de votre ordinateur, avec une marge de prudence. Un verre d'eau par verre d'alcool. Au moindre symptôme après une plongée : oxygène et médecin.</p>` : '';
+  const c = $('cpDecoCfg'); if (c) c.onclick = () => {
+    const a = prompt('Heures minimum après la sortie de l’eau avant un verre', CFG.apresPlongee); if (a === null) return;
+    const b = prompt('Heures sans alcool avant une plongée', CFG.avantPlongee); if (b === null) return;
+    CFG.apresPlongee = Math.max(0, +a || 4); CFG.avantPlongee = Math.max(0, +b || 12); lsS('cp-deco', { apresPlongee: CFG.apresPlongee, avantPlongee: CFG.avantPlongee });
+    decoCache = null; paintDecoBan(); };
+}
+setInterval(paintDecoBan, 5 * 60e3);
+
 /* ---------------- abonnements ---------------- */
-BZ.listeners.push(() => { paintFauneFilter(); if (curView === 'stats') renderStats(); if (curView === 'voyages') renderVoy(); if (!dOv.hidden) paintDive(); });
-paintFauneFilter();
+BZ.listeners.push(() => { decoCache = null; paintDecoBan(); paintFauneFilter(); if (curView === 'stats') renderStats(); if (curView === 'voyages') renderVoy(); if (!dOv.hidden) paintDive(); });
+paintFauneFilter(); paintDecoBan();
 (async () => {
   const db = await dbP; if (!db) return;
   if (PUBLIC) { impBtn.hidden = true; return; }
