@@ -92,6 +92,19 @@ document.head.append(el('style', null, `
 .cp-st.vol .p b{font-family:var(--f-body);font-size:14px}
 .cp-st.vol .p b::before{content:"✈ ";color:var(--muted)}
 .cp-st .nf{grid-column:2;font-size:13px;color:var(--amber);font-weight:700}
+.cp-pl{display:flex;flex-direction:column}
+.cp-pr{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(0,1.2fr);gap:4px 10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.cp-pr:first-child{border-top:0}
+@media (max-width:520px){.cp-pr{grid-template-columns:minmax(0,1fr)}}
+.cp-pr label{display:flex;gap:9px;align-items:center;font-size:14px;cursor:pointer;font-weight:600}
+.cp-pr label input{width:19px;height:19px;accent-color:var(--done);margin:0;flex:none}
+.cp-pr.ok label span{color:var(--muted);text-decoration:line-through}
+.cp-pr .nt{font-size:13.5px;padding:6px 9px;width:100%;min-width:0}
+.cp-pr.ed{grid-template-columns:minmax(0,1fr) auto}
+.cp-pr .mv{display:flex;gap:4px}
+.cp-ib{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-size:13px;font-weight:700}
+.cp-ib[disabled]{opacity:.3;cursor:default}
+.cp-ib.del{color:var(--red)}
 .cp-chk{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 14px}
 @media (max-width:520px){.cp-chk{grid-template-columns:minmax(0,1fr)}}
 .cp-chk label{display:flex;gap:9px;align-items:center;padding:5px 0;font-size:14px;cursor:pointer}
@@ -654,7 +667,10 @@ function vCard(v) {
     <span>${vDeb(v) ? fDate(vDeb(v), { day: 'numeric', month: 'short' }) + ' → ' + fDate(vFin(v), { day: 'numeric', month: 'short', year: 'numeric' }) : 'Dates à définir'}</span>
     <small>${[zNom(v.zone), n ? n + ' plongée' + (n > 1 ? 's' : '') : '', ph ? ph + ' photo' + (ph > 1 ? 's' : '') : ''].filter(Boolean).join(' · ')}</small></button>`;
 }
-function renderVoy() {
+let voyPending = false;
+function voyRefresh() { const a = document.activeElement; if (a && secVoy.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) { voyPending = true; return; } renderVoy(); }
+secVoy.addEventListener('focusout', () => setTimeout(() => { if (voyPending && !secVoy.contains(document.activeElement)) { voyPending = false; if (curView === 'voyages' && !vEdit) renderVoy(); } }, 0));
+function renderVoy() { voyPending = false;
   if (PUBLIC) return;
   const R = ro();
   const up = voyages.filter(v => !vPast(v)).sort((a, b) => vDeb(a).localeCompare(vDeb(b))), past = voyages.filter(vPast).sort((a, b) => vDeb(b).localeCompare(vDeb(a)));
@@ -690,7 +706,7 @@ function renderVoy() {
           <div class="cp-tile"><span>Sous l'eau</span><b>${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}</b></div><div class="cp-tile"><span>Prof. max</span><b>${deep ? nf(deep.prof) + ' m' : '–'}</b><small>${deep ? esc(BZ.siteName(deep.site) || '') : ''}</small></div></div>
           ${fa.size ? `<div class="cp-chips">${[...fa].sort((a, b) => b[1] - a[1]).map(([f, n]) => `<span class="chip" style="cursor:default">${esc(f)} · ${n}</span>`).join('')}</div>` : ''}
           <div class="cp-rec">${ds.map(d => `<button type="button" data-d="${d.id}"><span class="n">${esc(BZ.siteName(d.site) || d.site)}</span><span class="v">${nf(d.prof)} m · ${d.duree ?? '–'} min</span><span class="l">${fDate(d.date, { weekday: 'short', day: 'numeric', month: 'short' })}${d.heure ? ' · ' + d.heure : ''}</span></button>`).join('')}</div>`
-          : '<p class="cp-note">Aucune plongée du carnet sur ces dates' + (v.zone ? ' dans cette zone' : '') + '.</p>'}</div>${photos}</div>`;
+          : '<p class="cp-note">Aucune plongée du carnet sur ces dates' + (v.zone ? ' dans cette zone' : '') + '.</p>'}</div>${prepHTML(v)}${photos}</div>`;
   } else {
     const vw = warnHTML(expiries(), fin, 'la fin du voyage'), lw = lastWeights(v.zone), tst = (v.etapes || []).filter(e => e.plongee && e.lat != null);
     rest = `<div class="cp-grid">
@@ -702,7 +718,7 @@ function renderVoy() {
         <p class="cp-note">Marée montante : le courant entre dans le lagon (eau claire, plongée « entrante » dans les passes). Marée descendante : courant sortant, eau plus trouble. À confirmer avec le centre de plongée sur place.</p></div>` : ''}
       <div class="card cp-sec" style="gap:8px"><span class="cp-k">Dernier lestage connu</span>
         ${lw.length ? lw.map(({ z, d }) => `<button type="button" class="cp-rec" style="all:unset;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:6px 0;border-top:1px solid var(--line)" data-d="${d.id}"><span><b>${esc(zNom(z))}</b><br><span class="cp-note">${esc(BZ.siteName(d.site) || '')} · ${fDate(d.date)}</span></span><span style="text-align:right;font-variant-numeric:tabular-nums">Chris ${nf(d.lestChris)} kg<br>Véro ${nf(d.lestVero)} kg</span></button>`).join('') : '<p class="cp-note">Aucun lestage noté dans le carnet.</p>'}</div>
-      <div class="card cp-sec" style="gap:8px"><span class="cp-k">Valise plongée · ${CHECK.filter(([k]) => (v.check || {})[k]).length}/${CHECK.length}</span><div class="cp-chk">${CHECK.map(([k, l]) => `<label class="${(v.check || {})[k] ? 'ok' : ''}"><input type="checkbox" data-k="${k}" ${(v.check || {})[k] ? 'checked' : ''} ${R ? 'disabled' : ''}><span>${esc(l)}</span></label>`).join('')}</div></div>
+      ${prepHTML(v)}
       ${photos}</div>`;
     setTimeout(() => {
       if (!$('cpTSt')) return; if (!tst.some(e => e.lieu === tideSt)) tideSt = (tst.find(e => /rangiroa/i.test(e.lieu)) || tst[0] || {}).lieu;
@@ -718,7 +734,7 @@ function renderVoy() {
   const eb = $('cpVEd'); if (eb) eb.onclick = () => { vEdit = !vEdit; renderVoy(); };
   bindHeb(v, one);
   one.querySelectorAll('[data-d]').forEach(b => b.onclick = () => BZ.openDive(b.dataset.d));
-  one.querySelectorAll('.cp-chk input').forEach(c => c.onchange = () => saveVoy({ ...v, check: { ...(v.check || {}), [c.dataset.k]: c.checked } }));
+  bindPrep(v, one);
   paintVoyPhotos(v);
 }
 function bindHeb(v, root) {   // miniature de chaque hébergement (étape)
@@ -751,6 +767,34 @@ function autoVoyages() {
   fresh.forEach((g, i) => saveVoy({ id: 'v-' + g.z + '-' + g.du, nom: noms[i][0].toUpperCase() + noms[i].slice(1), zone: g.z,
     etapes: [{ lieu: zNom(g.z), du: g.du, au: g.au, heb: '', plongee: true }], vols: [], check: {} }));
   toast(fresh.length + ' voyage(s) créé(s)');
+}
+/* ---------------- préparatifs du voyage : liste éditable ---------------- */
+const PREP_DEF = ['Parking aéroport', 'Vols', 'Hôtel aéroport', 'Voiture de location', 'Hébergement sur place', 'Stinapa', 'Dive Friends'];
+const prepOf = v => Array.isArray(v.prep) ? v.prep : PREP_DEF.map((l, i) => ({ id: 'd' + i, label: l, ok: false, note: '' }));
+let prepEdit = false;
+function prepHTML(v) {
+  const L = prepOf(v), R = ro(), n = L.filter(x => x.ok).length;
+  return `<div class="card cp-sec cp-prep" style="gap:8px"><div class="listhead"><span class="cp-k">Préparatifs · ${n}/${L.length}</span>${R ? '' : `<button class="btn" type="button" data-pa="edit">${prepEdit ? 'Terminer' : 'Modifier la liste'}</button>`}</div>
+    <div class="cp-pl">${L.map((x, i) => prepEdit && !R
+      ? `<div class="cp-pr ed" data-i="${i}"><input class="cp-sel" data-f="label" value="${esc(x.label)}" aria-label="Intitulé" placeholder="Intitulé"><span class="mv"><button type="button" class="cp-ib" data-up="${i}" aria-label="Monter" ${i ? '' : 'disabled'}>↑</button><button type="button" class="cp-ib del" data-rm="${i}" aria-label="Supprimer ${esc(x.label)}">Suppr.</button></span></div>`
+      : `<div class="cp-pr${x.ok ? ' ok' : ''}" data-i="${i}"><label><input type="checkbox" data-f="ok" ${x.ok ? 'checked' : ''} ${R ? 'disabled' : ''}><span>${esc(x.label)}</span></label><input class="cp-sel nt" data-f="note" value="${esc(x.note || '')}" placeholder="Réservation, n°, prix, notes…" aria-label="Notes ${esc(x.label)}" ${R ? 'disabled' : ''}></div>`).join('')}</div>
+    ${R ? '' : '<div class="row"><button class="btn" type="button" data-pa="add">+ Ajouter une ligne</button>' + (prepEdit ? '<button class="btn" type="button" data-pa="def">Remettre la liste par défaut</button>' : '') + '</div>'}</div>`;
+}
+function bindPrep(v, root) {
+  const box = root.querySelector('.cp-prep'); if (!box) return;
+  const cur = () => voyages.find(x => x.id === v.id) || v;
+  const save = L => saveVoy({ ...cur(), prep: L });
+  const list = () => JSON.parse(JSON.stringify(prepOf(cur())));
+  box.querySelectorAll('[data-f="ok"]').forEach(c => c.onchange = () => { const L = list(); L[+c.closest('[data-i]').dataset.i].ok = c.checked; save(L); });
+  box.querySelectorAll('[data-f="note"]').forEach(t => { let h; t.oninput = () => { clearTimeout(h); h = setTimeout(() => t.onchange(), 1200); };
+    t.onchange = () => { clearTimeout(h); const L = list(), i = +t.closest('[data-i]').dataset.i; if (!L[i] || L[i].note === t.value.trim()) return; L[i].note = t.value.trim().slice(0, 300); save(L); }; });
+  box.querySelectorAll('[data-f="label"]').forEach(t => t.onchange = () => { const L = list(), i = +t.closest('[data-i]').dataset.i; L[i].label = t.value.trim().slice(0, 80) || L[i].label; save(L); });
+  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const L = list(); L.splice(+b.dataset.rm, 1); save(L).then(renderVoy); });
+  box.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const L = list(), i = +b.dataset.up; [L[i - 1], L[i]] = [L[i], L[i - 1]]; save(L).then(renderVoy); });
+  const a = box.querySelector('[data-pa="add"]'); if (a) a.onclick = () => { const lab = (prompt('Nouvelle ligne (ex. Assurance voyage, Transfert bateau)') || '').trim(); if (!lab) return;
+    const L = list(); L.push({ id: 'p' + Date.now().toString(36), label: lab.slice(0, 80), ok: false, note: '' }); save(L).then(renderVoy); };
+  const e = box.querySelector('[data-pa="edit"]'); if (e) e.onclick = () => { prepEdit = !prepEdit; renderVoy(); };
+  const d = box.querySelector('[data-pa="def"]'); if (d) d.onclick = () => { if (!confirm('Remplacer la liste par la liste par défaut ? Les notes saisies seront perdues.')) return; prepEdit = false; save(PREP_DEF.map((l, i) => ({ id: 'd' + i, label: l, ok: false, note: '' }))).then(renderVoy); };
 }
 function paintVoyEdit(body, v) {
   const E = JSON.parse(JSON.stringify(v)), isNew = !v.id;
@@ -1146,6 +1190,6 @@ paintFauneFilter(); paintDecoBan();
     if (!voyages.length && !seeded && db.role !== 'lecteur' && window.CP && window.CP.carnet) { seeded = true;   // vérifie côté serveur avant de créer le voyage d'exemple
       window.CP.sb.from('docs').select('doc_id').eq('carnet_id', window.CP.carnet).eq('collection', 'voyages').limit(1)
         .then(({ data, error }) => { if (!error && data && !data.length) vRef.doc('polynesie-2027').set(SEED).catch(() => {}); }); }
-    if (curView === 'voyages' && !vEdit) renderVoy(); }, () => {});   // pas de rafraîchissement pendant une saisie
+    if (curView === 'voyages' && !vEdit) voyRefresh(); }, () => {});   // pas de rafraîchissement pendant une saisie
 })();
 })();
