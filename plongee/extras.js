@@ -81,6 +81,10 @@ document.head.append(el('style', null, `
 .views button .cp-badge{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:6px;vertical-align:2px}
 .cp-tl{display:flex;flex-direction:column}
 .cp-st{display:grid;grid-template-columns:86px minmax(0,1fr);gap:4px 12px;padding:10px 0;border-top:1px solid var(--line)}
+.cp-st .p{display:block}
+.cp-heb{all:unset;box-sizing:border-box;float:left;width:62px;height:62px;margin:0 12px 2px 0;border-radius:10px;background:var(--bg) center/cover no-repeat;border:1px solid var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);text-align:center}
+.cp-heb.vide{border-style:dashed}
+.cp-st::after{content:"";display:block;clear:both}
 .cp-st:first-child{border-top:0}
 .cp-st .d{font:500 12px var(--f-mono);color:var(--muted);line-height:1.35}
 .cp-st .p b{font-family:var(--f-display);font-size:16px}
@@ -153,14 +157,25 @@ document.head.append(el('style', null, `
 .cp-rpop{display:flex;flex-direction:column;gap:3px;min-width:150px}
 .cp-rpop small{color:#555}
 .cp-rpop .btn{margin-top:4px;font-size:13px;padding:5px 10px}
-.cp-cal{display:flex;flex-direction:column}
-.cp-day{border-top:1px solid var(--line);padding:8px 0;display:flex;flex-direction:column;gap:3px}
-.cp-day:first-child{border-top:0}
-.cp-day.now .dh b{color:var(--done)}
-.cp-day .dh{display:flex;justify-content:space-between;align-items:center;font-size:14px}
-.cp-day .dh b::first-letter{text-transform:uppercase}
-.cp-add{all:unset;cursor:pointer;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--done)}
-.cp-it{all:unset;display:grid;grid-template-columns:52px 18px minmax(0,1fr);gap:6px;align-items:baseline;font-size:14px;padding:3px 0;cursor:pointer}
+.cp-wk,.cp-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cp-wk span{font:600 10.5px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center}
+.cp-cell{all:unset;box-sizing:border-box;min-height:86px;border:1px solid var(--line);border-radius:9px;background:var(--bg);padding:4px 5px;display:flex;flex-direction:column;gap:2px;overflow:hidden;cursor:pointer;min-width:0}
+.cp-cell.out{background:transparent;border-style:dashed;opacity:.45;cursor:default}
+.cp-cell.now{border-color:var(--done);box-shadow:inset 0 0 0 1px var(--done)}
+.cp-cell .n{font:700 13px var(--f-display);display:flex;gap:3px;align-items:baseline}
+.cp-cell .n small{font:500 10px var(--f-body);color:var(--muted)}
+.cp-cell .ci{font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:4px;padding:1px 3px;background:color-mix(in srgb,var(--line) 45%,transparent)}
+.cp-cell .ci i{font-style:normal;margin-right:2px}
+.cp-cell .ci em{font-style:normal;font-family:var(--f-mono);font-size:10px;color:var(--muted);margin-right:3px}
+.cp-cell .ci.dv{background:var(--plan-soft)}.cp-cell .ci.dv i{color:var(--plan)}
+.cp-cell .ci.dv.ok{background:var(--done-soft)}.cp-cell .ci.dv.ok i{color:var(--done)}
+.cp-cell .ci.resto{background:color-mix(in srgb,#c2410c 14%,transparent)}
+.cp-cell .ci.vol,.cp-cell .ci.etape{background:color-mix(in srgb,var(--amber) 16%,transparent)}
+.cp-cell .more{font-size:10.5px;color:var(--muted);font-weight:700}
+@media (max-width:600px){.cp-cell{min-height:64px;padding:3px}.cp-cell .ci{font-size:0;padding:0;background:none;height:12px}.cp-cell .ci i{font-size:10px}.cp-cell .ci em{display:none}.cp-cell{flex-direction:row;flex-wrap:wrap;align-content:flex-start;gap:1px 2px}.cp-cell .n{width:100%}}
+.cp-dlist{display:flex;flex-direction:column;gap:2px}
+.cp-it{all:unset;display:grid;grid-template-columns:52px 18px minmax(0,1fr);gap:6px;align-items:baseline;font-size:14px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer}
+.cp-it:first-child{border-top:0}
 .cp-it[disabled]{cursor:default}
 .cp-it .h{font:500 12px var(--f-mono);color:var(--muted)}
 .cp-it .ic{color:var(--muted);text-align:center}
@@ -659,7 +674,7 @@ function renderVoy() {
     paintVoyEdit($('cpVBody'), { id: null, nom: '', zone: BZ.zone() ? BZ.zone().id : '', etapes: [{ lieu: '', du: '', au: '', heb: '', plongee: true }], vols: [], check: {} }); return; }
   if (!v) return;
   const deb = vDeb(v), fin = vFin(v), passe = vPast(v), j = deb ? nightBetween(today(), deb) : null, nfs = noFly(v);
-  const items = [...(v.etapes || []).map(e => ({ k: 'e', date: e.du, e })), ...(v.vols || []).map(f => ({ k: 'v', date: f.date, f }))].sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.k === 'v' ? -1 : 1));
+  const items = [...(v.etapes || []).map((e, ei) => ({ k: 'e', date: e.du, e, ei })), ...(v.vols || []).map(f => ({ k: 'v', date: f.date, f }))].sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.k === 'v' ? -1 : 1));
   const ds = vDives(v);
   const head = `<div class="card"><div class="listhead"><div><span class="cp-k">${deb ? (passe ? 'Terminé' : j > 0 ? 'Dans ' + j + ' jours' : 'En cours') + ' · ' + fDate(deb, { day: 'numeric', month: 'long' }) + ' → ' + fDate(fin) : 'Dates à définir'}${v.zone ? ' · ' + esc(zNom(v.zone)) : ''}</span><h3>${esc(v.nom)}</h3></div>
       ${R ? '' : `<button class="btn" type="button" id="cpVEd">${vEdit ? 'Terminer' : 'Modifier'}</button>`}</div>
@@ -699,11 +714,25 @@ function renderVoy() {
   const body = $('cpVBody');
   if (vEdit) paintVoyEdit(body, v); else body.innerHTML = items.length ? `<div class="cp-tl">${items.map(it => it.k === 'v'
       ? `<div class="cp-st vol"><span class="d">${fDate(it.f.date, { day: 'numeric', month: 'short' })}${it.f.heure ? '<br>' + it.f.heure : ''}</span><span class="p"><b>${esc(it.f.de)} → ${esc(it.f.a)}</b>${it.f.ref ? `<small>${esc(it.f.ref)}</small>` : ''}</span></div>`
-      : `<div class="cp-st"><span class="d">${fDate(it.e.du, { day: 'numeric', month: 'short' })}<br>→ ${fDate(it.e.au, { day: 'numeric', month: 'short' })}</span><span class="p"><b>${esc(it.e.lieu)}</b><small>${[it.e.heb, nightBetween(it.e.du, it.e.au) + ' nuit(s)', it.e.plongee ? 'plongée' : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${(() => { const n = !passe && nfs.find(n => n.etape === it.e.lieu && n.vol.date === it.e.au); return n ? `<span class="nf">Dernière plongée : ${fDate(n.lastDay, { weekday: 'short', day: 'numeric', month: 'short' })}</span>` : ''; })()}</div>`).join('')}</div>` : '<p class="cp-note">Pas encore d’étapes.</p>';
+      : `<div class="cp-st"><span class="d">${fDate(it.e.du, { day: 'numeric', month: 'short' })}<br>→ ${fDate(it.e.au, { day: 'numeric', month: 'short' })}</span><span class="p">${it.e.photo || !R ? `<button type="button" class="cp-heb${it.e.photo ? '' : ' vide'}" data-ep="${it.ei}" data-ph="${esc(it.e.photo || '')}" aria-label="${it.e.photo ? 'Photo de l\u2019hébergement' : 'Ajouter une photo de l\u2019hébergement'}">${it.e.photo ? '' : '+ photo'}</button>` : ''}<b>${esc(it.e.lieu)}</b><small>${[it.e.heb, nightBetween(it.e.du, it.e.au) + ' nuit(s)', it.e.plongee ? 'plongée' : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${(() => { const n = !passe && nfs.find(n => n.etape === it.e.lieu && n.vol.date === it.e.au); return n ? `<span class="nf">Dernière plongée : ${fDate(n.lastDay, { weekday: 'short', day: 'numeric', month: 'short' })}</span>` : ''; })()}</div>`).join('')}</div>` : '<p class="cp-note">Pas encore d’étapes.</p>';
   const eb = $('cpVEd'); if (eb) eb.onclick = () => { vEdit = !vEdit; renderVoy(); };
+  bindHeb(v, one);
   one.querySelectorAll('[data-d]').forEach(b => b.onclick = () => BZ.openDive(b.dataset.d));
   one.querySelectorAll('.cp-chk input').forEach(c => c.onchange = () => saveVoy({ ...v, check: { ...(v.check || {}), [c.dataset.k]: c.checked } }));
   paintVoyPhotos(v);
+}
+function bindHeb(v, root) {   // miniature de chaque hébergement (étape)
+  const btns = [...root.querySelectorAll('.cp-heb')], withPh = btns.filter(b => b.dataset.ph);
+  if (withPh.length) thumbURLs(withPh.map(b => b.dataset.ph)).then(us => withPh.forEach((b, i) => { if (us[i]) b.style.backgroundImage = `url("${us[i]}")`; }));
+  const setPhoto = async (ei, path) => { const cur = voyages.find(x => x.id === v.id) || v; const et = JSON.parse(JSON.stringify(cur.etapes || []));
+    if (!et[ei]) return; if (path) et[ei].photo = path; else delete et[ei].photo; await saveVoy({ ...cur, etapes: et }); };
+  btns.forEach(b => b.onclick = async () => { const ei = +b.dataset.ep, p = b.dataset.ph;
+    if (p) { const [f] = await photoURLs([p]); lightbox(f || '', ro() ? null : async () => { gonePh.add(p); try { await store().remove([p, thumbOf(p)]); } catch {} await setPhoto(ei, null); }); return; }
+    if (ro() || !store()) return;
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async () => { const file = inp.files[0]; if (!file) return; b.textContent = 'Envoi…'; b.disabled = true;
+      try { const path = await uploadPhoto(file, 'voyages/' + v.id + '/hebergements'); await setPhoto(ei, path); } catch (e) { toast('Envoi impossible'); b.textContent = '+ photo'; b.disabled = false; } };
+    inp.click(); });
 }
 function paintVoyPhotos(v) {
   const dir = 'voyages/' + v.id, cur = () => voyages.find(x => x.id === v.id) || v;
@@ -1020,29 +1049,42 @@ $('mapbox').append(rBtn);
 
 /* ---------------- calendrier du voyage ---------------- */
 const dayList = (a, b) => { const out = []; if (!a || !b) return out; let d = new Date(a + 'T12:00'); const e = new Date(b + 'T12:00'); while (d <= e && out.length < 62) { out.push(d.toISOString().slice(0, 10)); d = new Date(+d + 864e5); } return out; };
+function dayItems(v, day) {   // éléments d'une journée, triés par heure
+  const it = [];
+  (v.vols || []).filter(f => f.date === day).forEach(f => it.push({ k: 'vol', h: f.heure || '', ic: '✈', t: `${f.de} → ${f.a}`, s: f.ref || '' }));
+  (v.etapes || []).filter(e => e.du === day).forEach(e => it.push({ k: 'etape', h: '', ic: '⌂', t: e.lieu, s: e.heb || '' }));
+  BZ.dives().filter(d => d.date === day && (!v.zone || BZ.siteZone(d.site) === v.zone)).forEach(d => it.push({ k: d.statut === 'faite' ? 'dv ok' : 'dv', h: d.heure || '', ic: '●', t: BZ.siteName(d.site) || d.site, s: d.statut === 'faite' ? `${nf(d.prof)} m · ${d.duree ?? '–'} min` : 'plongée prévue', d: d.id }));
+  (v.agenda || []).filter(a => a.date === day).forEach(a => { const r = a.type === 'resto' ? getResto(a.ref) : null;
+    it.push(a.type === 'resto' ? { k: 'resto', h: a.heure || '', ic: '🍽', t: r ? r.nom : 'Restaurant supprimé', s: a.texte || '', ag: a.id } : { k: 'note', h: a.heure || '', ic: '✎', t: a.texte || 'Note', s: '', ag: a.id }); });
+  return it.sort((x, y) => (x.h || '99').localeCompare(y.h || '99'));
+}
 function calHTML(v) {
   const days = dayList(vDeb(v), vFin(v)); if (!days.length) return '';
-  const R = ro(), ag = v.agenda || [];
-  const dvs = BZ.dives().filter(d => d.date && days.includes(d.date) && (!v.zone || BZ.siteZone(d.site) === v.zone));
-  const rows = days.map(day => {
-    const it = [];
-    (v.vols || []).filter(f => f.date === day).forEach(f => it.push({ h: f.heure || '', html: `<span class="ic">✈</span><span><b>${esc(f.de)} → ${esc(f.a)}</b>${f.ref ? ' · ' + esc(f.ref) : ''}</span>` }));
-    (v.etapes || []).filter(e => e.du === day).forEach(e => it.push({ h: '', html: `<span class="ic">⌂</span><span><b>Arrivée à ${esc(e.lieu)}</b>${e.heb ? ' · ' + esc(e.heb) : ''}</span>` }));
-    dvs.filter(d => d.date === day).forEach(d => it.push({ h: d.heure || '', html: `<span class="ic dv${d.statut === 'faite' ? ' ok' : ''}">●</span><span><b>${esc(BZ.siteName(d.site) || d.site)}</b> · ${d.statut === 'faite' ? `${nf(d.prof)} m, ${d.duree ?? '–'} min` : 'plongée prévue'}</span>`, attr: `data-d="${esc(d.id)}"` }));
-    ag.filter(a => a.date === day).forEach(a => { const r = a.type === 'resto' ? getResto(a.ref) : null;
-      it.push({ h: a.heure || '', html: a.type === 'resto' ? `<span class="ic">🍽</span><span><b>${esc(r ? r.nom : 'Restaurant supprimé')}</b>${a.texte ? ' · ' + esc(a.texte) : ''}</span>` : `<span class="ic">✎</span><span>${esc(a.texte || '')}</span>`, attr: `data-ag="${esc(a.id)}"` }); });
-    it.sort((x, y) => (x.h || '99').localeCompare(y.h || '99'));
-    const isToday = day === today();
-    return `<div class="cp-day${isToday ? ' now' : ''}"><div class="dh"><b>${fDate(day, { weekday: 'short', day: 'numeric', month: 'short' })}</b>${R ? '' : `<button type="button" class="cp-add" data-add="${day}" aria-label="Ajouter le ${fDate(day, { day: 'numeric', month: 'long' })}">+</button>`}</div>
-      ${it.map(x => `<button type="button" class="cp-it" ${x.attr || 'disabled'}><span class="h">${x.h ? x.h.replace(':', ' h ') : ''}</span>${x.html}</button>`).join('') || '<span class="cp-note">Libre</span>'}</div>`;
-  }).join('');
-  return `<div class="card cp-sec" style="gap:8px"><span class="cp-k">Calendrier</span><div class="cp-cal">${rows}</div></div>`;
+  const first = new Date(days[0] + 'T12:00'), last = new Date(days.at(-1) + 'T12:00');
+  const start = new Date(+first - ((first.getDay() + 6) % 7) * 864e5), end = new Date(+last + (6 - (last.getDay() + 6) % 7) * 864e5);
+  const cells = []; for (let d = start; d <= end; d = new Date(+d + 864e5)) cells.push(d.toISOString().slice(0, 10));
+  const inTrip = new Set(days), td = today();
+  return `<div class="card cp-sec" style="gap:8px"><span class="cp-k">Calendrier</span>
+    <div class="cp-wk" aria-hidden="true">${['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(x => `<span>${x}</span>`).join('')}</div>
+    <div class="cp-cal">${cells.map(day => { if (!inTrip.has(day)) return `<div class="cp-cell out"><span class="n">${+day.slice(8)}</span></div>`;
+      const it = dayItems(v, day), mo = day.slice(8) === '01' || day === days[0] ? ' ' + fDate(day, { month: 'short' }) : '';
+      return `<button type="button" class="cp-cell${day === td ? ' now' : ''}" data-day="${day}" aria-label="${fDate(day, { weekday: 'long', day: 'numeric', month: 'long' })}, ${it.length} élément(s)">
+        <span class="n">${+day.slice(8)}<small>${mo}</small></span>${it.slice(0, 4).map(x => `<span class="ci ${x.k}"><i>${x.ic}</i>${x.h ? `<em>${x.h.replace(':', 'h')}</em>` : ''}${esc(x.t)}</span>`).join('')}${it.length > 4 ? `<span class="more">+${it.length - 4}</span>` : ''}</button>`; }).join('')}</div></div>`;
 }
-function bindCal(v, root) {
-  root.querySelectorAll('.cp-cal [data-d]').forEach(b => b.onclick = () => BZ.openDive(b.dataset.d));
-  root.querySelectorAll('.cp-cal [data-ag]').forEach(b => b.onclick = () => { const a = (v.agenda || []).find(x => x.id === b.dataset.ag); if (a) agendaForm({ ...a, voyage: v.id }, [v], true); });
-  root.querySelectorAll('.cp-cal [data-add]').forEach(b => b.onclick = () => agendaForm({ type: 'resto', voyage: v.id, date: b.dataset.add, heure: '' }, [v]));
+const dOvDay = el('div', 'overlay'); dOvDay.hidden = true; dOvDay.innerHTML = '<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cpDayT"></div>'; document.body.append(dOvDay);
+dOvDay.addEventListener('click', e => { if (e.target === dOvDay) dOvDay.hidden = true; });
+function openDay(v, day) {
+  const it = dayItems(v, day), R = ro(), sh = dOvDay.firstElementChild;
+  sh.innerHTML = `<div class="cp-head"><div><span class="cp-k">${esc(v.nom)}</span><h3 id="cpDayT">${fDate(day, { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, c => c.toUpperCase())}</h3></div><button class="cp-x" type="button" aria-label="Fermer" data-a="x">×</button></div>
+    <div class="cp-dlist">${it.map((x, i) => `<button type="button" class="cp-it" data-i="${i}" ${x.d || x.ag ? '' : 'disabled'}><span class="h">${x.h ? x.h.replace(':', ' h ') : ''}</span><span class="ic ${x.k}">${x.ic}</span><span><b>${esc(x.t)}</b>${x.s ? ' · ' + esc(x.s) : ''}</span></button>`).join('') || '<p class="cp-note">Journée libre.</p>'}</div>
+    ${R ? '' : '<div class="row"><button class="btn" type="button" data-t="resto">+ Restaurant</button><button class="btn" type="button" data-t="plongee">+ Plongée</button><button class="btn" type="button" data-t="note">+ Note</button></div>'}`;
+  sh.querySelector('[data-a="x"]').onclick = () => dOvDay.hidden = true;
+  sh.querySelectorAll('.cp-it[data-i]').forEach(b => b.onclick = () => { const x = it[+b.dataset.i]; dOvDay.hidden = true;
+    if (x.d) BZ.openDive(x.d); else if (x.ag) { const a = (v.agenda || []).find(y => y.id === x.ag); if (a) agendaForm({ ...a, voyage: v.id }, [v], true); } });
+  sh.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { dOvDay.hidden = true; agendaForm({ type: b.dataset.t, voyage: v.id, date: day, heure: '' }, [v]); });
+  dOvDay.hidden = false;
 }
+function bindCal(v, root) { root.querySelectorAll('.cp-cal [data-day]').forEach(b => b.onclick = () => openDay(v, b.dataset.day)); }
 function agendaForm(A, vs, exist) {
   const v0 = () => voyages.find(x => x.id === A.voyage) || vs[0];
   const sh = rOv.firstElementChild; rOv.hidden = false; rOpen = null; rOv.dataset.edit = '1';
