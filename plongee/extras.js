@@ -862,7 +862,7 @@ function paintDecoBan() {
 setInterval(paintDecoBan, 5 * 60e3);
 
 /* ---------------- restaurants : base, fiche, avis, photos, carte ---------------- */
-let restos = [], rRef = null, rQ = '', rCuis = '', rFiltre = '', rZone = null, rLayer = null, rLayerOn = lsG('cp-rlayer') !== false, rOpen = null;
+let rFocus = null, restos = [], rRef = null, rQ = '', rCuis = '', rFiltre = '', rZone = null, rLayer = null, rLayerOn = lsG('cp-rlayer') !== false, rOpen = null;
 const PRIX = ['', '€', '€€', '€€€', '€€€€'];
 const CUIS_FR = { regional: 'Locale', local: 'Locale', caribbean: 'Caribéenne', seafood: 'Poisson et fruits de mer', fish: 'Poisson', italian: 'Italienne', pizza: 'Pizza', burger: 'Burger', steak_house: 'Grill', grill: 'Grill', bbq: 'Barbecue', international: 'Internationale', asian: 'Asiatique', sushi: 'Sushi', japanese: 'Japonaise', indian: 'Indienne', chinese: 'Chinoise', thai: 'Thaïe', mexican: 'Mexicaine', french: 'Française', polynesian: 'Polynésienne', coffee_shop: 'Café', ice_cream: 'Glacier', american: 'Américaine', dutch: 'Néerlandaise', venezuelan: 'Vénézuélienne', vegan: 'Vegan', vegetarian: 'Végétarienne', breakfast: 'Petit-déjeuner', sandwich: 'Sandwich', mediterranean: 'Méditerranéenne', greek: 'Grecque', argentinian: 'Argentine', peruvian: 'Péruvienne', tapas: 'Tapas', chicken: 'Poulet', crepe: 'Crêpes', bakery: 'Boulangerie', cake: 'Pâtisserie' };
 const TYPE_FR = { restaurant: 'Restaurant', cafe: 'Café', fast_food: 'Snack', bar: 'Bar', pub: 'Bar', ice_cream: 'Glacier', beach_bar: 'Bar de plage' };
@@ -997,20 +997,20 @@ function paintRLayer() {
   if (!rLayer) { rLayer = L.layerGroup(); map.on('zoomend', paintRLayer); }
   rLayer.clearLayers(); const show = rLayerOn && map.getZoom() >= 11;
   if (!show) { if (map.hasLayer(rLayer)) map.removeLayer(rLayer); } else if (!map.hasLayer(rLayer)) rLayer.addTo(map);
-  if (show) restos.filter(r => r.lat != null).forEach(r => {
+  if (show) restos.filter(r => r.lat != null && (r.fav || r.id === rFocus)).forEach(r => {   // carte : favoris seulement
     const m = L.marker([r.lat, r.lon], { icon: L.divIcon({ className: 'cp-rmk-w', iconSize: [22, 22], iconAnchor: [11, 11], html: `<div class="cp-rmk${r.fav ? ' fav' : ''}${(r.avis || []).length ? ' av' : ''}" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 2v8a2 2 0 0 0 1.5 1.94V22h2V11.94A2 2 0 0 0 12 10V2h-1.5v6h-1V2H8v6H7V2zM16 2c-1.66 0-3 2.24-3 5v6h2.5v9h2V2z"/></svg></div>` }), title: r.nom, keyboard: true });
     const a = rAvg(r), d = document.createElement('div'); d.className = 'cp-rpop';
     d.innerHTML = `<b>${esc(r.nom)}</b><small>${esc([cuisLab(r.cuisine), PRIX[r.prix || 0]].filter(Boolean).join(' · ') || TYPE_FR[r.type] || '')}</small>${a != null ? `<small class="st">${starTxt(a)}</small>` : ''}<button type="button" class="btn">Fiche</button>`;
     d.querySelector('button').onclick = () => { map.closePopup(); openResto(r.id); };
     m.bindPopup(d); m._rid = r.id; rLayer.addLayer(m); });
-  rBtn.setAttribute('aria-pressed', rLayerOn); rBtn.hidden = !restos.length;
+  rBtn.setAttribute('aria-pressed', rLayerOn); rBtn.hidden = !restos.some(r => r.fav && r.lat != null);
 }
 function restoOnMap(r) {
-  views.querySelector('[data-v="map"]').click(); rLayerOn = true; lsS('cp-rlayer', true);
+  views.querySelector('[data-v="map"]').click(); rLayerOn = true; lsS('cp-rlayer', true); rFocus = r.id;   // un non-favori reste visible quand on le montre depuis sa fiche
   setTimeout(() => { const map = BZ.map(); map.invalidateSize(); map.setView([r.lat, r.lon], 16); setTimeout(() => { paintRLayer(); rLayer.eachLayer(m => { if (m._rid === r.id) m.openPopup(); }); }, 350); }, 120);
 }
-const rBtn = el('button', 'mapbtn cp-rbtn'); rBtn.type = 'button'; rBtn.textContent = 'Restaurants'; rBtn.hidden = true;
-rBtn.onclick = () => { rLayerOn = !rLayerOn; lsS('cp-rlayer', rLayerOn); paintRLayer(); if (rLayerOn && BZ.map().getZoom() < 11) toast('Zoomez sur une île pour voir les restaurants'); };
+const rBtn = el('button', 'mapbtn cp-rbtn'); rBtn.type = 'button'; rBtn.textContent = '♥ Restos'; rBtn.hidden = true;
+rBtn.onclick = () => { rLayerOn = !rLayerOn; lsS('cp-rlayer', rLayerOn); paintRLayer(); if (rLayerOn && BZ.map().getZoom() < 11) toast('Zoomez sur une île pour voir vos restaurants favoris'); };
 $('mapbox').append(rBtn);
 
 /* ---------------- calendrier du voyage ---------------- */
