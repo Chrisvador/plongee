@@ -1051,7 +1051,7 @@ $('mapbox').append(rBtn);
 const dayList = (a, b) => { const out = []; if (!a || !b) return out; let d = new Date(a + 'T12:00'); const e = new Date(b + 'T12:00'); while (d <= e && out.length < 62) { out.push(d.toISOString().slice(0, 10)); d = new Date(+d + 864e5); } return out; };
 function dayItems(v, day) {   // éléments d'une journée, triés par heure
   const it = [];
-  (v.vols || []).filter(f => f.date === day).forEach(f => it.push({ k: 'vol', h: f.heure || '', ic: '✈', t: `${f.de} → ${f.a}`, s: f.ref || '' }));
+  (v.vols || []).forEach((f, vi) => { if (f.date === day) it.push({ k: 'vol', h: f.heure || '', ic: '✈', t: `${f.de || '?'} → ${f.a || '?'}`, s: f.ref || '', vi }); });
   (v.etapes || []).filter(e => e.du === day).forEach(e => it.push({ k: 'etape', h: '', ic: '⌂', t: e.lieu, s: e.heb || '' }));
   BZ.dives().filter(d => d.date === day && (!v.zone || BZ.siteZone(d.site) === v.zone)).forEach(d => it.push({ k: d.statut === 'faite' ? 'dv ok' : 'dv', h: d.heure || '', ic: '●', t: BZ.siteName(d.site) || d.site, s: d.statut === 'faite' ? `${nf(d.prof)} m · ${d.duree ?? '–'} min` : 'plongée prévue', d: d.id }));
   (v.agenda || []).filter(a => a.date === day).forEach(a => { const r = a.type === 'resto' ? getResto(a.ref) : null;
@@ -1076,11 +1076,11 @@ dOvDay.addEventListener('click', e => { if (e.target === dOvDay) dOvDay.hidden =
 function openDay(v, day) {
   const it = dayItems(v, day), R = ro(), sh = dOvDay.firstElementChild;
   sh.innerHTML = `<div class="cp-head"><div><span class="cp-k">${esc(v.nom)}</span><h3 id="cpDayT">${fDate(day, { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, c => c.toUpperCase())}</h3></div><button class="cp-x" type="button" aria-label="Fermer" data-a="x">×</button></div>
-    <div class="cp-dlist">${it.map((x, i) => `<button type="button" class="cp-it" data-i="${i}" ${x.d || x.ag ? '' : 'disabled'}><span class="h">${x.h ? x.h.replace(':', ' h ') : ''}</span><span class="ic ${x.k}">${x.ic}</span><span><b>${esc(x.t)}</b>${x.s ? ' · ' + esc(x.s) : ''}</span></button>`).join('') || '<p class="cp-note">Journée libre.</p>'}</div>
-    ${R ? '' : '<div class="row"><button class="btn" type="button" data-t="resto">+ Restaurant</button><button class="btn" type="button" data-t="plongee">+ Plongée</button><button class="btn" type="button" data-t="note">+ Note</button></div>'}`;
+    <div class="cp-dlist">${it.map((x, i) => `<button type="button" class="cp-it" data-i="${i}" ${x.d || x.ag || x.vi != null ? '' : 'disabled'}><span class="h">${x.h ? x.h.replace(':', ' h ') : ''}</span><span class="ic ${x.k}">${x.ic}</span><span><b>${esc(x.t)}</b>${x.s ? ' · ' + esc(x.s) : ''}</span></button>`).join('') || '<p class="cp-note">Journée libre.</p>'}</div>
+    ${R ? '' : '<div class="row"><button class="btn" type="button" data-t="resto">+ Restaurant</button><button class="btn" type="button" data-t="plongee">+ Plongée</button><button class="btn" type="button" data-t="note">+ Note</button><button class="btn" type="button" data-t="vol">+ Vol</button></div>'}`;
   sh.querySelector('[data-a="x"]').onclick = () => dOvDay.hidden = true;
   sh.querySelectorAll('.cp-it[data-i]').forEach(b => b.onclick = () => { const x = it[+b.dataset.i]; dOvDay.hidden = true;
-    if (x.d) BZ.openDive(x.d); else if (x.ag) { const a = (v.agenda || []).find(y => y.id === x.ag); if (a) agendaForm({ ...a, voyage: v.id }, [v], true); } });
+    if (x.d) BZ.openDive(x.d); else if (x.vi != null) { const f = (v.vols || [])[x.vi]; if (f) agendaForm({ type: 'vol', voyage: v.id, date: f.date, heure: f.heure || '', de: f.de || '', a: f.a || '', ref: f.ref || '', vi: x.vi }, [v], true); } else if (x.ag) { const a = (v.agenda || []).find(y => y.id === x.ag); if (a) agendaForm({ ...a, voyage: v.id }, [v], true); } });
   sh.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { dOvDay.hidden = true; agendaForm({ type: b.dataset.t, voyage: v.id, date: day, heure: '' }, [v]); });
   dOvDay.hidden = false;
 }
@@ -1094,26 +1094,32 @@ function agendaForm(A, vs, exist) {
     const sites = BZ.siteList().filter(s => !v.zone || s.zone === v.zone).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     if (!days.includes(A.date)) A.date = days[0] || '';
     sh.innerHTML = `<div class="cp-head"><h3 id="cpRT">${exist ? 'Modifier' : 'Ajouter au calendrier'}</h3><button class="cp-x" type="button" aria-label="Fermer" data-a="x">×</button></div>
-      ${exist ? '' : `<div class="cp-chips">${[['resto', 'Restaurant'], ['plongee', 'Plongée'], ['note', 'Note']].map(([k, l]) => `<button class="chip" type="button" data-t="${k}" aria-pressed="${A.type === k}">${l}</button>`).join('')}</div>`}
+      ${exist ? '' : `<div class="cp-chips">${[['resto', 'Restaurant'], ['plongee', 'Plongée'], ['vol', 'Vol'], ['note', 'Note']].map(([k, l]) => `<button class="chip" type="button" data-t="${k}" aria-pressed="${A.type === k}">${l}</button>`).join('')}</div>`}
       <div class="cp-form">${vs.length > 1 ? `<label><span>Voyage</span><select class="cp-sel" data-k="voyage">${vs.map(x => `<option value="${esc(x.id)}"${x.id === v.id ? ' selected' : ''}>${esc(x.nom)}</option>`).join('')}</select></label>` : ''}
         <label><span>Jour</span><select class="cp-sel" data-k="date">${days.map(d => `<option value="${d}"${d === A.date ? ' selected' : ''}>${fDate(d, { weekday: 'long', day: 'numeric', month: 'long' })}</option>`).join('')}</select></label>
         <label><span>Heure</span><input class="cp-sel" type="time" data-k="heure" value="${esc(A.heure || '')}"></label>
         ${A.type === 'resto' ? `<label><span>Restaurant</span><select class="cp-sel" data-k="ref">${rs.map(r => `<option value="${esc(r.id)}"${r.id === A.ref ? ' selected' : ''}>${r.fav ? '♥ ' : ''}${esc(r.nom)}</option>`).join('') || '<option value="">Aucun restaurant dans la base pour cette zone</option>'}</select></label>` : ''}
         ${A.type === 'plongee' ? `<label><span>Site</span><select class="cp-sel" data-k="site">${sites.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label>` : ''}
-        ${A.type !== 'plongee' ? `<label><span>${A.type === 'resto' ? 'Précision (réservé, nb de personnes…)' : 'Note'}</span><input class="cp-sel" data-k="texte" value="${esc(A.texte || '')}" maxlength="200"></label>` : ''}</div>
+        ${A.type === 'vol' ? `<label><span>De</span><input class="cp-sel" data-k="de" value="${esc(A.de || '')}" placeholder="Aéroport ou ville de départ"></label><label><span>À</span><input class="cp-sel" data-k="a" value="${esc(A.a || '')}" placeholder="Arrivée"></label><label><span>N° de vol</span><input class="cp-sel" data-k="ref" value="${esc(A.type === 'vol' ? A.ref || '' : '')}" placeholder="ex. TN7"></label>` : ''}
+        ${A.type !== 'plongee' && A.type !== 'vol' ? `<label><span>${A.type === 'resto' ? 'Précision (réservé, nb de personnes…)' : 'Note'}</span><input class="cp-sel" data-k="texte" value="${esc(A.texte || '')}" maxlength="200"></label>` : ''}</div>
       <p class="cp-note" id="cpAEr" role="status"></p>
       <div class="row" style="justify-content:space-between">${exist ? `<span class="row"><button class="btn danger" type="button" data-a="del">Retirer</button>${A.type === 'resto' && getResto(A.ref) ? '<button class="btn" type="button" data-a="fiche">Fiche</button>' : ''}</span>` : '<span></span>'}<div class="row"><button class="btn" type="button" data-a="x2">Annuler</button><button class="btn pri" type="button" data-a="s">Enregistrer</button></div></div>`;
     const read = () => sh.querySelectorAll('[data-k]').forEach(i => A[i.dataset.k] = i.value);
-    sh.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { read(); A.type = b.dataset.t; draw(); });
+    sh.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { read(); if ((A.type === 'vol') !== (b.dataset.t === 'vol')) A.ref = ''; A.type = b.dataset.t; draw(); });
     const vsel = sh.querySelector('[data-k="voyage"]'); if (vsel) vsel.onchange = () => { read(); draw(); };
     const on = (a, f) => { const b = sh.querySelector(`[data-a="${a}"]`); if (b) b.onclick = f; };
     const close = () => { rOv.hidden = true; delete rOv.dataset.edit; };
     on('x', close); on('x2', close);
     on('fiche', () => openResto(A.ref));
-    on('del', async () => { const cur = v0(); await saveVoy({ ...cur, agenda: (cur.agenda || []).filter(x => x.id !== A.id) }); close(); renderVoy(); });
+    on('del', async () => { const cur = v0();
+      if (A.type === 'vol') { const vols = [...(cur.vols || [])]; vols.splice(A.vi, 1); await saveVoy({ ...cur, vols }); }
+      else await saveVoy({ ...cur, agenda: (cur.agenda || []).filter(x => x.id !== A.id) }); close(); renderVoy(); });
     on('s', async () => { read(); if (!A.date) { $('cpAEr').textContent = 'Le voyage n’a pas encore de dates.'; return; }
       if (A.type === 'plongee') { if (!A.site) { $('cpAEr').textContent = 'Choisissez un site.'; return; }
         await BZ.save('p' + Date.now().toString(36), { date: A.date, heure: A.heure || '', site: A.site, statut: 'prevue', prof: null, duree: null, gaz: '', notes: '' }); close(); toast('Plongée prévue ajoutée au carnet'); return; }
+      if (A.type === 'vol') { if (!A.de && !A.a) { $('cpAEr').textContent = 'Indiquez au moins le départ ou l\u2019arrivée.'; return; }
+        const cur = v0(), vols = [...(cur.vols || [])], f = { date: A.date, heure: A.heure || '', de: (A.de || '').trim(), a: (A.a || '').trim(), ref: (A.ref || '').trim() };
+        if (A.vi != null) vols[A.vi] = f; else vols.push(f); await saveVoy({ ...cur, vols }); close(); toast('Vol enregistré'); renderVoy(); return; }
       if (A.type === 'resto' && !A.ref) { $('cpAEr').textContent = 'Choisissez un restaurant (ou importez ceux de la zone dans l’onglet Restos).'; return; }
       const cur = v0(), item = { id: A.id || 'a' + Date.now().toString(36), type: A.type, date: A.date, heure: A.heure || '', ref: A.type === 'resto' ? A.ref : null, texte: (A.texte || '').trim() };
       await saveVoy({ ...cur, agenda: [...(cur.agenda || []).filter(x => x.id !== item.id), item] }); close(); toast('Ajouté au calendrier du ' + fDate(A.date, { day: 'numeric', month: 'long' })); renderVoy(); });
