@@ -117,9 +117,56 @@ document.head.append(el('style', null, `
 .cp-vc b{font-family:var(--f-display);font-size:16px}
 .cp-vc span{font-size:13px}
 .cp-vc small{font-size:12px;color:var(--muted)}
+.cp-rf{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);gap:8px;margin-top:12px}
+@media (max-width:560px){.cp-rf{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cp-rf #cpRQ{grid-column:1/-1;order:-1}}
+.cp-rl{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:12px}
+.cp-rc{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px;color:inherit;font:inherit;cursor:pointer;min-width:0}
+.cp-rc .th{width:64px;height:64px;border-radius:9px;background:color-mix(in srgb,var(--done) 18%,var(--surface)) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font:700 24px var(--f-display);color:var(--done)}
+.cp-rc .tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cp-rc b,.cp-rc small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-rc small{font-size:12.5px;color:var(--muted)}
+.cp-rc .fav,.cp-rpop .fav{color:var(--plan);font-style:normal}
+.st{color:var(--amber);letter-spacing:1px}
+.cp-info{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.cp-info div{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;font-size:14px}
+.cp-info span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+.cp-info b{font-weight:500;overflow-wrap:anywhere}
+.cp-info a{color:var(--done)}
+.cp-avis{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.cp-avis>div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px}
+.cp-avis small{color:var(--muted)}
+.cp-avis p{margin:4px 0 0;white-space:pre-wrap}
+.cp-avf{display:flex;flex-direction:column;gap:6px}
+.cp-stars{display:flex;gap:2px}
+.cp-stars button{all:unset;cursor:pointer;font-size:26px;color:var(--amber);padding:0 3px}
+.cp-form{display:flex;flex-direction:column;gap:8px}
+.cp-form label{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;align-items:center;font-size:13px;color:var(--muted)}
+@media (max-width:520px){.cp-form label{grid-template-columns:minmax(0,1fr);gap:3px}}
+.cp-form .cp-sel{width:100%;min-width:0}
+.cp-rbtn{top:10px;left:10px;right:auto}
+.cp-rbtn[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.cp-rmk{width:22px;height:22px;border-radius:50%;background:#fff;color:#c2410c;border:2px solid #c2410c;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.cp-rmk.av{background:#ffedd5}
+.cp-rmk.fav{background:#c2410c;color:#fff}
+.cp-rpop{display:flex;flex-direction:column;gap:3px;min-width:150px}
+.cp-rpop small{color:#555}
+.cp-rpop .btn{margin-top:4px;font-size:13px;padding:5px 10px}
+.cp-cal{display:flex;flex-direction:column}
+.cp-day{border-top:1px solid var(--line);padding:8px 0;display:flex;flex-direction:column;gap:3px}
+.cp-day:first-child{border-top:0}
+.cp-day.now .dh b{color:var(--done)}
+.cp-day .dh{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.cp-day .dh b::first-letter{text-transform:uppercase}
+.cp-add{all:unset;cursor:pointer;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--done)}
+.cp-it{all:unset;display:grid;grid-template-columns:52px 18px minmax(0,1fr);gap:6px;align-items:baseline;font-size:14px;padding:3px 0;cursor:pointer}
+.cp-it[disabled]{cursor:default}
+.cp-it .h{font:500 12px var(--f-mono);color:var(--muted)}
+.cp-it .ic{color:var(--muted);text-align:center}
+.cp-it .ic.dv{color:var(--plan)}
+.cp-it .ic.dv.ok{color:var(--done)}
 .cp-faune{display:flex;gap:8px;align-items:center;margin-top:8px}
 .cp-faune select{flex:1;min-width:0}
-html.public-view [data-v="padi"],html.public-view [data-v="voyages"],html.public-view [data-v="plan"]{display:none}
+html.public-view [data-v="padi"],html.public-view [data-v="restos"],html.public-view [data-v="voyages"],html.public-view [data-v="plan"]{display:none}
 `));
 
 /* ---------------- onglets ---------------- */
@@ -132,11 +179,12 @@ function addTab(v, label, before) {
 }
 const secStats = addTab('stats', 'Statistiques', 'plan');
 const secVoy = addTab('voyages', 'Voyages', 'ndl');
+const secResto = addTab('restos', 'Restos', 'ndl');
 let curView = 'map';
-document.addEventListener('cp-view', e => { curView = e.detail; lsS('cp-view2', e.detail); if (typeof paintDecoBan === 'function') paintDecoBan();
-  if (e.detail === 'stats') renderStats(); if (e.detail === 'voyages') renderVoy(); });
+document.addEventListener('cp-view', e => { curView = e.detail; if (e.detail === 'map' && typeof paintRLayer === 'function') setTimeout(paintRLayer, 50); lsS('cp-view2', e.detail); if (typeof paintDecoBan === 'function') paintDecoBan();
+  if (e.detail === 'stats') renderStats(); if (e.detail === 'voyages') renderVoy(); if (e.detail === 'restos') renderRestos(); });
 const saved = lsG('cp-view2');
-if ((saved === 'stats' || (saved === 'voyages' && !PUBLIC))) setTimeout(() => views.querySelector(`[data-v="${saved}"]`).click(), 0);
+if ((saved === 'stats' || ((saved === 'voyages' || saved === 'restos') && !PUBLIC))) setTimeout(() => views.querySelector(`[data-v="${saved}"]`).click(), 0);
 if (PUBLIC && ['padi', 'plan', 'voyages'].includes(saved)) setTimeout(() => views.querySelector('[data-v="map"]').click(), 0);
 
 /* ---------------- faune ---------------- */
@@ -645,7 +693,7 @@ function renderVoy() {
       $('cpTSt').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tideSt = b.dataset.t; renderVoy(); });
       const te = tst.find(e => e.lieu === tideSt); if (te) loadTide(te, deb, fin); }, 0);
   }
-  one.innerHTML = head + rest;
+  one.innerHTML = head + calHTML(v) + rest; bindCal(v, one);
   const body = $('cpVBody');
   if (vEdit) paintVoyEdit(body, v); else body.innerHTML = items.length ? `<div class="cp-tl">${items.map(it => it.k === 'v'
       ? `<div class="cp-st vol"><span class="d">${fDate(it.f.date, { day: 'numeric', month: 'short' })}${it.f.heure ? '<br>' + it.f.heure : ''}</span><span class="p"><b>${esc(it.f.de)} → ${esc(it.f.a)}</b>${it.f.ref ? `<small>${esc(it.f.ref)}</small>` : ''}</span></div>`
@@ -813,6 +861,219 @@ function paintDecoBan() {
 }
 setInterval(paintDecoBan, 5 * 60e3);
 
+/* ---------------- restaurants : base, fiche, avis, photos, carte ---------------- */
+let restos = [], rRef = null, rQ = '', rCuis = '', rFiltre = '', rZone = null, rLayer = null, rLayerOn = lsG('cp-rlayer') !== false, rOpen = null;
+const PRIX = ['', '€', '€€', '€€€', '€€€€'];
+const CUIS_FR = { regional: 'Locale', local: 'Locale', caribbean: 'Caribéenne', seafood: 'Poisson et fruits de mer', fish: 'Poisson', italian: 'Italienne', pizza: 'Pizza', burger: 'Burger', steak_house: 'Grill', grill: 'Grill', bbq: 'Barbecue', international: 'Internationale', asian: 'Asiatique', sushi: 'Sushi', japanese: 'Japonaise', indian: 'Indienne', chinese: 'Chinoise', thai: 'Thaïe', mexican: 'Mexicaine', french: 'Française', polynesian: 'Polynésienne', coffee_shop: 'Café', ice_cream: 'Glacier', american: 'Américaine', dutch: 'Néerlandaise', venezuelan: 'Vénézuélienne', vegan: 'Vegan', vegetarian: 'Végétarienne', breakfast: 'Petit-déjeuner', sandwich: 'Sandwich', mediterranean: 'Méditerranéenne', greek: 'Grecque', argentinian: 'Argentine', peruvian: 'Péruvienne', tapas: 'Tapas', chicken: 'Poulet', crepe: 'Crêpes', bakery: 'Boulangerie', cake: 'Pâtisserie' };
+const TYPE_FR = { restaurant: 'Restaurant', cafe: 'Café', fast_food: 'Snack', bar: 'Bar', pub: 'Bar', ice_cream: 'Glacier', beach_bar: 'Bar de plage' };
+const cuisLab = c => (c || '').split(/[;,]/).map(x => x.trim()).filter(Boolean).map(x => CUIS_FR[x.toLowerCase()] || x.replace(/_/g, ' ')).join(', ');
+const rAvg = r => { const a = (r.avis || []).filter(x => x.note); return a.length ? a.reduce((s, x) => s + x.note, 0) / a.length : null; };
+const starTxt = n => n == null ? '' : '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
+const myName = () => { let n = lsG('cp-nom'); if (!n) { n = (prompt('Votre prénom (affiché avec vos avis)') || '').trim().slice(0, 30); if (n) lsS('cp-nom', n); } return n || 'Anonyme'; };
+const getResto = id => restos.find(r => r.id === id);
+async function saveResto(id, obj) { if (ro() || !rRef) return; const { id: _, ...rest } = obj; try { await rRef.doc(id).set({ ...rest, maj: new Date().toISOString() }); } catch { toast('Enregistrement impossible'); } }
+const zoneBoxes = z => {   // une boîte par île / secteur de la zone, d'après ses sites
+  const g = new Map(); BZ.siteList().filter(s => s.zone === z && s.lat != null).forEach(s => { const k = (s.secteur || '').split(' · ')[0] || '_'; if (!g.has(k)) g.set(k, []); g.get(k).push(s); });
+  const boxes = [...g.values()].map(l => [Math.min(...l.map(s => s.lat)) - .04, Math.min(...l.map(s => s.lon)) - .04, Math.max(...l.map(s => s.lat)) + .04, Math.max(...l.map(s => s.lon)) + .04]);
+  const merged = []; boxes.forEach(b => { const m = merged.find(x => !(b[0] > x[2] || b[2] < x[0] || b[1] > x[3] || b[3] < x[1])); if (m) { m[0] = Math.min(m[0], b[0]); m[1] = Math.min(m[1], b[1]); m[2] = Math.max(m[2], b[2]); m[3] = Math.max(m[3], b[3]); } else merged.push([...b]); });
+  return merged;
+};
+async function importOSM(z, btn) {
+  const boxes = zoneBoxes(z); if (!boxes.length) { toast('Aucun site connu dans cette zone pour situer la recherche'); return; }
+  const lab = btn.textContent; btn.disabled = true; btn.textContent = 'Recherche…';
+  try {
+    const q = `[out:json][timeout:40];(${boxes.map(b => `nwr["amenity"~"^(restaurant|cafe|fast_food|bar|pub|ice_cream)$"]["name"](${b.map(v => v.toFixed(4)).join(',')});`).join('')});out center tags;`;
+    const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'content-type': 'application/x-www-form-urlencoded' } });
+    if (!r.ok) throw new Error('OpenStreetMap indisponible (' + r.status + ')');
+    const els = (await r.json()).elements || [];
+    const fresh = els.filter(e => !getResto('osm-' + e.type[0] + e.id));
+    if (!fresh.length) { toast(els.length ? 'Tous les établissements sont déjà dans la base' : 'Aucun établissement trouvé'); return; }
+    if (!confirm(`${fresh.length} établissements trouvés sur OpenStreetMap pour ${zNom(z)}. Les ajouter à votre base ?`)) return;
+    let n = 0;
+    for (const e of fresh) { const t = e.tags || {}, lat = e.lat ?? e.center?.lat, lon = e.lon ?? e.center?.lon;
+      const adr = [t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ');
+      await saveResto('osm-' + e.type[0] + e.id, { nom: t.name, zone: z, lat, lon, type: t.amenity, cuisine: t.cuisine || '', tel: t.phone || t['contact:phone'] || '', web: t.website || t['contact:website'] || '', horaires: t.opening_hours || '', adresse: adr, source: 'OpenStreetMap' });
+      if (++n % 10 === 0) btn.textContent = `Ajout ${n}/${fresh.length}…`; }
+    toast(n + ' établissement(s) ajouté(s)');
+  } catch (e) { toast(e.message || 'Recherche impossible'); }
+  finally { btn.disabled = false; btn.textContent = lab; }
+}
+function renderRestos() {
+  if (PUBLIC) return;
+  const R = ro(), zs = [...new Set(restos.map(r => r.zone).filter(Boolean))], cz = BZ.zone() ? BZ.zone().id : null;
+  if (rZone == null || (rZone !== 'all' && !zs.includes(rZone) && rZone !== cz)) rZone = cz || zs[0] || 'all';
+  const inZ = restos.filter(r => rZone === 'all' || r.zone === rZone);
+  const cuis = [...new Set(inZ.flatMap(r => cuisLab(r.cuisine).split(', ')).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+  const q = norm(rQ);
+  const list = inZ.filter(r => (!q || norm(r.nom + ' ' + cuisLab(r.cuisine) + ' ' + (r.adresse || '')).includes(q)) && (!rCuis || cuisLab(r.cuisine).split(', ').includes(rCuis))
+      && (rFiltre !== 'fav' || r.fav) && (rFiltre !== 'avis' || (r.avis || []).length) && (rFiltre !== 'photos' || (r.photos || []).length))
+    .sort((a, b) => (!!b.fav - !!a.fav) || ((rAvg(b) ?? -1) - (rAvg(a) ?? -1)) || a.nom.localeCompare(b.nom, 'fr'));
+  const zOpts = [...new Set([...zs, cz].filter(Boolean))];
+  secResto.innerHTML = `<div class="card"><div class="listhead"><div><span class="cp-k">${inZ.length} établissement(s)</span><h3>Restaurants</h3></div>
+      ${R ? '' : `<div class="row">${rZone !== 'all' ? '<button class="btn" type="button" id="cpROsm">Importer d’OpenStreetMap</button>' : ''}<button class="btn pri" type="button" id="cpRNew">+ Ajouter</button></div>`}</div>
+    <div class="cp-rf"><select class="cp-sel" id="cpRZ" aria-label="Zone"><option value="all">Toutes zones</option>${zOpts.map(z => `<option value="${esc(z)}">${esc(zNom(z))}</option>`).join('')}</select>
+      <input class="cp-sel" id="cpRQ" type="search" placeholder="Rechercher" aria-label="Rechercher un restaurant" value="${esc(rQ)}">
+      <select class="cp-sel" id="cpRC" aria-label="Cuisine"><option value="">Toutes cuisines</option>${cuis.map(c => `<option>${esc(c)}</option>`).join('')}</select></div>
+    <div class="cp-chips" style="margin-top:8px">${[['', 'Tous'], ['fav', '♥ Favoris'], ['avis', 'Avec avis'], ['photos', 'Avec photos']].map(([k, l]) => `<button class="chip" type="button" data-rf="${k}" aria-pressed="${rFiltre === k}">${l}</button>`).join('')}</div>
+    <div class="cp-rl" id="cpRL">${list.map(r => { const a = rAvg(r);
+      return `<button type="button" class="cp-rc" data-r="${esc(r.id)}"><span class="th" data-th="${esc((r.photos || [])[0] || '')}">${esc((r.nom || '?')[0])}</span><span class="tx"><b>${r.fav ? '<i class="fav">♥</i> ' : ''}${esc(r.nom)}</b>
+        <small>${esc([TYPE_FR[r.type] && r.type !== 'restaurant' ? TYPE_FR[r.type] : '', cuisLab(r.cuisine), PRIX[r.prix || 0]].filter(Boolean).join(' · ') || TYPE_FR[r.type] || 'Restaurant')}</small>
+        <small>${a != null ? `<span class="st">${starTxt(a)}</span> ` : ''}${(r.avis || []).length ? (r.avis.length + ' avis') : ''}${rZone === 'all' ? ' · ' + esc(zNom(r.zone)) : ''}</small></span></button>`; }).join('') || `<p class="cp-note">${restos.length ? 'Aucun résultat.' : R ? 'Aucun restaurant.' : 'Base vide : importez les restaurants d’OpenStreetMap pour la zone, ou ajoutez-en un.'}</p>`}</div></div>`;
+  $('cpRZ').value = rZone; $('cpRC').value = rCuis;
+  $('cpRZ').onchange = e => { rZone = e.target.value; rCuis = ''; renderRestos(); };
+  $('cpRC').onchange = e => { rCuis = e.target.value; renderRestos(); };
+  $('cpRQ').oninput = e => { rQ = e.target.value; clearTimeout(renderRestos._t); renderRestos._t = setTimeout(() => { renderRestos(); const i = $('cpRQ'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); };
+  secResto.querySelectorAll('[data-rf]').forEach(b => b.onclick = () => { rFiltre = b.dataset.rf; renderRestos(); });
+  secResto.querySelectorAll('[data-r]').forEach(b => b.onclick = () => openResto(b.dataset.r));
+  const ob = $('cpROsm'); if (ob) ob.onclick = () => importOSM(rZone, ob);
+  const nb = $('cpRNew'); if (nb) nb.onclick = () => editResto(null);
+  const ths = [...secResto.querySelectorAll('[data-th]')].filter(x => x.dataset.th);
+  if (ths.length) thumbURLs(ths.map(x => x.dataset.th)).then(us => ths.forEach((x, i) => { if (us[i]) { x.style.backgroundImage = `url("${us[i]}")`; x.textContent = ''; } }));
+}
+/* fiche */
+const rOv = el('div', 'overlay'); rOv.hidden = true; rOv.innerHTML = '<div class="sheet cp-sheet" role="dialog" aria-modal="true" aria-labelledby="cpRT"></div>'; document.body.append(rOv);
+rOv.addEventListener('click', e => { if (e.target === rOv) closeResto(); });
+function closeResto() { rOv.hidden = true; rOpen = null; delete rOv.dataset.edit; }
+function openResto(id) { rOpen = id; paintResto(); rOv.hidden = false; }
+BZ.openResto = openResto;
+function paintResto() {
+  const r = getResto(rOpen), sh = rOv.firstElementChild; delete rOv.dataset.edit; if (!r) { closeResto(); return; }
+  const R = ro(), a = rAvg(r), web = r.web && /^https?:/i.test(r.web) ? r.web : r.web ? 'https://' + r.web : '';
+  sh.innerHTML = `<div class="cp-head"><div><span class="cp-k">${esc([TYPE_FR[r.type] || 'Restaurant', zNom(r.zone)].filter(Boolean).join(' · '))}</span><h3 id="cpRT">${esc(r.nom)}</h3>
+      <span class="cp-note">${esc([cuisLab(r.cuisine), PRIX[r.prix || 0]].filter(Boolean).join(' · '))}${a != null ? ` · <span class="st">${starTxt(a)}</span> ${nf(a)}/5` : ''}</span></div>
+      <div class="row" style="flex-wrap:nowrap">${R ? '' : `<button class="cp-x" type="button" data-a="fav" aria-pressed="${!!r.fav}" aria-label="${r.fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}" style="color:${r.fav ? 'var(--plan)' : 'var(--muted)'}">${r.fav ? '♥' : '♡'}</button>`}<button class="cp-x" type="button" aria-label="Fermer" data-a="x">×</button></div></div>
+    <div class="cp-info">${[r.adresse && ['Adresse', esc(r.adresse)], r.tel && ['Téléphone', `<a href="tel:${esc(r.tel.replace(/[^+\d]/g, ''))}">${esc(r.tel)}</a>`], web && ['Site', `<a href="${esc(web)}" target="_blank" rel="noopener">${esc(r.web.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''))}</a>`], r.horaires && ['Horaires', esc(r.horaires)], r.memo && ['Note', esc(r.memo)]].filter(Boolean).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('') || '<p class="cp-note">Pas d’informations pratiques.</p>'}</div>
+    <div class="row">${r.lat != null ? `<button class="btn" type="button" data-a="map">Voir sur la carte</button><a class="btn" href="https://maps.apple.com/?daddr=${r.lat},${r.lon}" target="_blank" rel="noopener">Itinéraire</a>` : ''}${R ? '' : '<button class="btn" type="button" data-a="plan">Planifier</button>'}</div>
+    <div><span class="cp-k">Photos</span><div class="cp-ph" id="cpRPh" style="margin-top:6px"></div><p class="cp-note" id="cpRPhMsg" role="status"></p></div>
+    <div><span class="cp-k">Avis${(r.avis || []).length ? ' · ' + r.avis.length : ''}</span><div class="cp-avis">${(r.avis || []).slice().reverse().map(x => `<div><b>${esc(x.par)}</b> <span class="st">${starTxt(x.note)}</span> <small>${fDate(x.date)}</small>${x.texte ? `<p>${esc(x.texte)}</p>` : ''}</div>`).join('') || '<p class="cp-note">Pas encore d’avis.</p>'}</div>
+      ${R ? '' : `<div class="cp-avf"><div class="cp-stars" role="radiogroup" aria-label="Note">${[1, 2, 3, 4, 5].map(n => `<button type="button" role="radio" aria-checked="false" data-n="${n}" aria-label="${n} sur 5">☆</button>`).join('')}</div>
+        <textarea class="cp-sel" id="cpRAv" rows="2" placeholder="Votre avis (plat conseillé, accueil, réservation…)" maxlength="800"></textarea><button class="btn pri" type="button" data-a="avis">Publier l’avis</button></div>`}</div>
+    ${R ? '' : '<div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-a="edit">Modifier</button></div>'}`;
+  const on = (a, f) => { const b = sh.querySelector(`[data-a="${a}"]`); if (b) b.onclick = f; };
+  on('x', closeResto);
+  on('fav', () => saveResto(r.id, { ...r, fav: !r.fav }));
+  on('map', () => { closeResto(); restoOnMap(r); });
+  on('plan', () => planResto(r));
+  on('edit', () => editResto(r));
+  let note = 0; sh.querySelectorAll('.cp-stars button').forEach(b => b.onclick = () => { note = +b.dataset.n; sh.querySelectorAll('.cp-stars button').forEach(x => { const k = +x.dataset.n <= note; x.textContent = k ? '★' : '☆'; x.setAttribute('aria-checked', +x.dataset.n === note); }); });
+  on('avis', async () => { const t = $('cpRAv').value.trim(); if (!note && !t) { toast('Donnez une note ou un avis'); return; }
+    const cur = getResto(r.id) || r; await saveResto(r.id, { ...cur, avis: [...(cur.avis || []), { par: myName(), note: note || null, texte: t.slice(0, 800), date: today() }] }); });
+  const dir = 'restos/' + r.id; gridOpts.set(dir, () => getResto(r.id)?.photos || []);
+  photoGrid($('cpRPh'), r.photos || [], { R, dir, max: 20, label: 'Photo du restaurant', msg: t => { const m = $('cpRPhMsg'); if (m) m.textContent = t; },
+    onSave: async () => { const cur = getResto(r.id) || r; await saveResto(r.id, { ...cur, photos: fixList(dir, cur.photos) }); } });
+}
+function editResto(r) {
+  const E = r ? { ...r } : { nom: '', zone: rZone !== 'all' ? rZone : (BZ.zone() ? BZ.zone().id : ''), type: 'restaurant', cuisine: '', prix: 0, adresse: '', tel: '', web: '', horaires: '', memo: '' };
+  const sh = rOv.firstElementChild; rOv.hidden = false; rOv.dataset.edit = '1';
+  sh.innerHTML = `<div class="cp-head"><h3 id="cpRT">${r ? 'Modifier' : 'Nouveau restaurant'}</h3><button class="cp-x" type="button" aria-label="Fermer" data-a="x">×</button></div>
+    <div class="cp-form">${[['nom', 'Nom'], ['cuisine', 'Cuisine (ex. caribéenne, poisson)'], ['adresse', 'Adresse'], ['tel', 'Téléphone'], ['web', 'Site web'], ['horaires', 'Horaires'], ['memo', 'Note personnelle (réserver, plat conseillé…)']]
+      .map(([k, l]) => `<label><span>${l}</span><input class="cp-sel" data-k="${k}" value="${esc(E[k] || '')}"></label>`).join('')}
+      <label><span>Prix</span><select class="cp-sel" data-k="prix">${PRIX.map((p, i) => `<option value="${i}"${+E.prix === i ? ' selected' : ''}>${p || 'Non précisé'}</option>`).join('')}</select></label>
+      <label><span>Zone</span><select class="cp-sel" data-k="zone"><option value="">Aucune</option>${BZ.zones().map(z => `<option value="${esc(z.id)}"${z.id === E.zone ? ' selected' : ''}>${esc(z.nom)}</option>`).join('')}</select></label>
+      <label><span>Position</span><span class="row" style="flex-wrap:nowrap"><input class="cp-sel" data-k="pos" value="${E.lat != null ? E.lat.toFixed(5) + ', ' + E.lon.toFixed(5) : ''}" placeholder="latitude, longitude"><button class="btn" type="button" data-a="gps">Ma position</button></span></label></div>
+    <p class="cp-note" id="cpREr" role="status"></p>
+    <div class="row" style="justify-content:space-between">${r ? '<button class="btn danger" type="button" data-a="del">Supprimer</button>' : '<span></span>'}<div class="row"><button class="btn" type="button" data-a="c">Annuler</button><button class="btn pri" type="button" data-a="s">Enregistrer</button></div></div>`;
+  const on = (a, f) => { const b = sh.querySelector(`[data-a="${a}"]`); if (b) b.onclick = f; };
+  on('x', () => r ? paintResto() : closeResto()); on('c', () => r ? paintResto() : closeResto());
+  on('gps', () => navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => sh.querySelector('[data-k="pos"]').value = p.coords.latitude.toFixed(5) + ', ' + p.coords.longitude.toFixed(5), () => toast('Position indisponible'), { enableHighAccuracy: true, timeout: 10000 }) : toast('Position indisponible'));
+  on('del', async e => { const b = e.currentTarget; if (b.dataset.arm !== '1') { b.dataset.arm = '1'; b.textContent = 'Confirmer la suppression'; return; }
+    try { if ((r.photos || []).length) await store().remove([...r.photos, ...r.photos.map(thumbOf)]); } catch {} await rRef.doc(r.id).delete(); closeResto(); });
+  on('s', async () => { sh.querySelectorAll('[data-k]').forEach(i => E[i.dataset.k] = i.value);
+    E.nom = (E.nom || '').trim(); if (!E.nom) { $('cpREr').textContent = 'Indiquez le nom.'; return; }
+    const m = /(-?\d+(?:[.,]\d+)?)\s*[,; ]\s*(-?\d+(?:[.,]\d+)?)/.exec(E.pos || ''); delete E.pos;
+    if (m) { E.lat = +m[1].replace(',', '.'); E.lon = +m[2].replace(',', '.'); } else { E.lat = r?.lat ?? null; E.lon = r?.lon ?? null; }
+    E.prix = +E.prix || 0; const id = r ? r.id : 'r-' + norm(E.nom).replace(/ /g, '-').slice(0, 24) + '-' + Date.now().toString(36);
+    await saveResto(id, E); rOpen = id; setTimeout(() => { if (getResto(id)) openResto(id); }, 50); });
+}
+/* planifier depuis la fiche */
+function planResto(r) {
+  const vs = voyages.filter(v => !vPast(v)).sort((a, b) => (b.zone === r.zone) - (a.zone === r.zone) || vDeb(a).localeCompare(vDeb(b)));
+  if (!vs.length) { toast('Créez d’abord un voyage à venir'); return; }
+  agendaForm({ type: 'resto', ref: r.id, voyage: vs[0].id, date: '', heure: '19:30' }, vs);
+}
+/* carte */
+function paintRLayer() {
+  const map = BZ.map && BZ.map(); if (!map || !window.L) return;
+  if (!rLayer) { rLayer = L.layerGroup(); map.on('zoomend', paintRLayer); }
+  rLayer.clearLayers(); const show = rLayerOn && map.getZoom() >= 11;
+  if (!show) { if (map.hasLayer(rLayer)) map.removeLayer(rLayer); } else if (!map.hasLayer(rLayer)) rLayer.addTo(map);
+  if (show) restos.filter(r => r.lat != null).forEach(r => {
+    const m = L.marker([r.lat, r.lon], { icon: L.divIcon({ className: 'cp-rmk-w', iconSize: [22, 22], iconAnchor: [11, 11], html: `<div class="cp-rmk${r.fav ? ' fav' : ''}${(r.avis || []).length ? ' av' : ''}" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M7 2v8a2 2 0 0 0 1.5 1.94V22h2V11.94A2 2 0 0 0 12 10V2h-1.5v6h-1V2H8v6H7V2zM16 2c-1.66 0-3 2.24-3 5v6h2.5v9h2V2z"/></svg></div>` }), title: r.nom, keyboard: true });
+    const a = rAvg(r), d = document.createElement('div'); d.className = 'cp-rpop';
+    d.innerHTML = `<b>${esc(r.nom)}</b><small>${esc([cuisLab(r.cuisine), PRIX[r.prix || 0]].filter(Boolean).join(' · ') || TYPE_FR[r.type] || '')}</small>${a != null ? `<small class="st">${starTxt(a)}</small>` : ''}<button type="button" class="btn">Fiche</button>`;
+    d.querySelector('button').onclick = () => { map.closePopup(); openResto(r.id); };
+    m.bindPopup(d); m._rid = r.id; rLayer.addLayer(m); });
+  rBtn.setAttribute('aria-pressed', rLayerOn); rBtn.hidden = !restos.length;
+}
+function restoOnMap(r) {
+  views.querySelector('[data-v="map"]').click(); rLayerOn = true; lsS('cp-rlayer', true);
+  setTimeout(() => { const map = BZ.map(); map.invalidateSize(); map.setView([r.lat, r.lon], 16); setTimeout(() => { paintRLayer(); rLayer.eachLayer(m => { if (m._rid === r.id) m.openPopup(); }); }, 350); }, 120);
+}
+const rBtn = el('button', 'mapbtn cp-rbtn'); rBtn.type = 'button'; rBtn.textContent = 'Restaurants'; rBtn.hidden = true;
+rBtn.onclick = () => { rLayerOn = !rLayerOn; lsS('cp-rlayer', rLayerOn); paintRLayer(); if (rLayerOn && BZ.map().getZoom() < 11) toast('Zoomez sur une île pour voir les restaurants'); };
+$('mapbox').append(rBtn);
+
+/* ---------------- calendrier du voyage ---------------- */
+const dayList = (a, b) => { const out = []; if (!a || !b) return out; let d = new Date(a + 'T12:00'); const e = new Date(b + 'T12:00'); while (d <= e && out.length < 62) { out.push(d.toISOString().slice(0, 10)); d = new Date(+d + 864e5); } return out; };
+function calHTML(v) {
+  const days = dayList(vDeb(v), vFin(v)); if (!days.length) return '';
+  const R = ro(), ag = v.agenda || [];
+  const dvs = BZ.dives().filter(d => d.date && days.includes(d.date) && (!v.zone || BZ.siteZone(d.site) === v.zone));
+  const rows = days.map(day => {
+    const it = [];
+    (v.vols || []).filter(f => f.date === day).forEach(f => it.push({ h: f.heure || '', html: `<span class="ic">✈</span><span><b>${esc(f.de)} → ${esc(f.a)}</b>${f.ref ? ' · ' + esc(f.ref) : ''}</span>` }));
+    (v.etapes || []).filter(e => e.du === day).forEach(e => it.push({ h: '', html: `<span class="ic">⌂</span><span><b>Arrivée à ${esc(e.lieu)}</b>${e.heb ? ' · ' + esc(e.heb) : ''}</span>` }));
+    dvs.filter(d => d.date === day).forEach(d => it.push({ h: d.heure || '', html: `<span class="ic dv${d.statut === 'faite' ? ' ok' : ''}">●</span><span><b>${esc(BZ.siteName(d.site) || d.site)}</b> · ${d.statut === 'faite' ? `${nf(d.prof)} m, ${d.duree ?? '–'} min` : 'plongée prévue'}</span>`, attr: `data-d="${esc(d.id)}"` }));
+    ag.filter(a => a.date === day).forEach(a => { const r = a.type === 'resto' ? getResto(a.ref) : null;
+      it.push({ h: a.heure || '', html: a.type === 'resto' ? `<span class="ic">🍽</span><span><b>${esc(r ? r.nom : 'Restaurant supprimé')}</b>${a.texte ? ' · ' + esc(a.texte) : ''}</span>` : `<span class="ic">✎</span><span>${esc(a.texte || '')}</span>`, attr: `data-ag="${esc(a.id)}"` }); });
+    it.sort((x, y) => (x.h || '99').localeCompare(y.h || '99'));
+    const isToday = day === today();
+    return `<div class="cp-day${isToday ? ' now' : ''}"><div class="dh"><b>${fDate(day, { weekday: 'short', day: 'numeric', month: 'short' })}</b>${R ? '' : `<button type="button" class="cp-add" data-add="${day}" aria-label="Ajouter le ${fDate(day, { day: 'numeric', month: 'long' })}">+</button>`}</div>
+      ${it.map(x => `<button type="button" class="cp-it" ${x.attr || 'disabled'}><span class="h">${x.h ? x.h.replace(':', ' h ') : ''}</span>${x.html}</button>`).join('') || '<span class="cp-note">Libre</span>'}</div>`;
+  }).join('');
+  return `<div class="card cp-sec" style="gap:8px"><span class="cp-k">Calendrier</span><div class="cp-cal">${rows}</div></div>`;
+}
+function bindCal(v, root) {
+  root.querySelectorAll('.cp-cal [data-d]').forEach(b => b.onclick = () => BZ.openDive(b.dataset.d));
+  root.querySelectorAll('.cp-cal [data-ag]').forEach(b => b.onclick = () => { const a = (v.agenda || []).find(x => x.id === b.dataset.ag); if (a) agendaForm({ ...a, voyage: v.id }, [v], true); });
+  root.querySelectorAll('.cp-cal [data-add]').forEach(b => b.onclick = () => agendaForm({ type: 'resto', voyage: v.id, date: b.dataset.add, heure: '' }, [v]));
+}
+function agendaForm(A, vs, exist) {
+  const v0 = () => voyages.find(x => x.id === A.voyage) || vs[0];
+  const sh = rOv.firstElementChild; rOv.hidden = false; rOpen = null; rOv.dataset.edit = '1';
+  const draw = () => {
+    const v = v0(), days = dayList(vDeb(v), vFin(v));
+    const rs = restos.filter(r => !v.zone || r.zone === v.zone).sort((a, b) => (!!b.fav - !!a.fav) || a.nom.localeCompare(b.nom, 'fr'));
+    const sites = BZ.siteList().filter(s => !v.zone || s.zone === v.zone).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    if (!days.includes(A.date)) A.date = days[0] || '';
+    sh.innerHTML = `<div class="cp-head"><h3 id="cpRT">${exist ? 'Modifier' : 'Ajouter au calendrier'}</h3><button class="cp-x" type="button" aria-label="Fermer" data-a="x">×</button></div>
+      ${exist ? '' : `<div class="cp-chips">${[['resto', 'Restaurant'], ['plongee', 'Plongée'], ['note', 'Note']].map(([k, l]) => `<button class="chip" type="button" data-t="${k}" aria-pressed="${A.type === k}">${l}</button>`).join('')}</div>`}
+      <div class="cp-form">${vs.length > 1 ? `<label><span>Voyage</span><select class="cp-sel" data-k="voyage">${vs.map(x => `<option value="${esc(x.id)}"${x.id === v.id ? ' selected' : ''}>${esc(x.nom)}</option>`).join('')}</select></label>` : ''}
+        <label><span>Jour</span><select class="cp-sel" data-k="date">${days.map(d => `<option value="${d}"${d === A.date ? ' selected' : ''}>${fDate(d, { weekday: 'long', day: 'numeric', month: 'long' })}</option>`).join('')}</select></label>
+        <label><span>Heure</span><input class="cp-sel" type="time" data-k="heure" value="${esc(A.heure || '')}"></label>
+        ${A.type === 'resto' ? `<label><span>Restaurant</span><select class="cp-sel" data-k="ref">${rs.map(r => `<option value="${esc(r.id)}"${r.id === A.ref ? ' selected' : ''}>${r.fav ? '♥ ' : ''}${esc(r.nom)}</option>`).join('') || '<option value="">Aucun restaurant dans la base pour cette zone</option>'}</select></label>` : ''}
+        ${A.type === 'plongee' ? `<label><span>Site</span><select class="cp-sel" data-k="site">${sites.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label>` : ''}
+        ${A.type !== 'plongee' ? `<label><span>${A.type === 'resto' ? 'Précision (réservé, nb de personnes…)' : 'Note'}</span><input class="cp-sel" data-k="texte" value="${esc(A.texte || '')}" maxlength="200"></label>` : ''}</div>
+      <p class="cp-note" id="cpAEr" role="status"></p>
+      <div class="row" style="justify-content:space-between">${exist ? `<span class="row"><button class="btn danger" type="button" data-a="del">Retirer</button>${A.type === 'resto' && getResto(A.ref) ? '<button class="btn" type="button" data-a="fiche">Fiche</button>' : ''}</span>` : '<span></span>'}<div class="row"><button class="btn" type="button" data-a="x2">Annuler</button><button class="btn pri" type="button" data-a="s">Enregistrer</button></div></div>`;
+    const read = () => sh.querySelectorAll('[data-k]').forEach(i => A[i.dataset.k] = i.value);
+    sh.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { read(); A.type = b.dataset.t; draw(); });
+    const vsel = sh.querySelector('[data-k="voyage"]'); if (vsel) vsel.onchange = () => { read(); draw(); };
+    const on = (a, f) => { const b = sh.querySelector(`[data-a="${a}"]`); if (b) b.onclick = f; };
+    const close = () => { rOv.hidden = true; delete rOv.dataset.edit; };
+    on('x', close); on('x2', close);
+    on('fiche', () => openResto(A.ref));
+    on('del', async () => { const cur = v0(); await saveVoy({ ...cur, agenda: (cur.agenda || []).filter(x => x.id !== A.id) }); close(); renderVoy(); });
+    on('s', async () => { read(); if (!A.date) { $('cpAEr').textContent = 'Le voyage n’a pas encore de dates.'; return; }
+      if (A.type === 'plongee') { if (!A.site) { $('cpAEr').textContent = 'Choisissez un site.'; return; }
+        await BZ.save('p' + Date.now().toString(36), { date: A.date, heure: A.heure || '', site: A.site, statut: 'prevue', prof: null, duree: null, gaz: '', notes: '' }); close(); toast('Plongée prévue ajoutée au carnet'); return; }
+      if (A.type === 'resto' && !A.ref) { $('cpAEr').textContent = 'Choisissez un restaurant (ou importez ceux de la zone dans l’onglet Restos).'; return; }
+      const cur = v0(), item = { id: A.id || 'a' + Date.now().toString(36), type: A.type, date: A.date, heure: A.heure || '', ref: A.type === 'resto' ? A.ref : null, texte: (A.texte || '').trim() };
+      await saveVoy({ ...cur, agenda: [...(cur.agenda || []).filter(x => x.id !== item.id), item] }); close(); toast('Ajouté au calendrier du ' + fDate(A.date, { day: 'numeric', month: 'long' })); renderVoy(); });
+  };
+  draw();
+}
+
 /* ---------------- abonnements ---------------- */
 BZ.listeners.push(() => { decoCache = null; paintDecoBan(); paintFauneFilter(); if (curView === 'stats') renderStats(); if (curView === 'voyages' && !vEdit) renderVoy(); if (!dOv.hidden) paintDive(); });
 paintFauneFilter(); paintDecoBan();
@@ -821,6 +1082,11 @@ paintFauneFilter(); paintDecoBan();
   if (PUBLIC) { impBtn.hidden = true; return; }
   if (db.role === 'lecteur') impBtn.hidden = true;
   db.collection('padi').onSnapshot(s => { padi = {}; s.docs.forEach(d => padi[d.id] = d.data()); paintPadiWarn(); if (curView === 'voyages' && !vEdit) renderVoy(); }, () => {});
+  rRef = db.collection('restos');
+  rRef.onSnapshot(s => { restos = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.nom);
+    if (curView === 'restos') renderRestos(); paintRLayer();
+    if (rOpen && !rOv.hidden && !rOv.dataset.edit) paintResto();
+    if (curView === 'voyages' && !vEdit) renderVoy(); }, () => {});
   vRef = db.collection('voyages');
   let seeded = false;
   vRef.onSnapshot(s => { voyages = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ((a.etapes || [])[0]?.du || '').localeCompare((b.etapes || [])[0]?.du || ''));
