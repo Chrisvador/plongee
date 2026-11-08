@@ -656,10 +656,13 @@ function paintVoyEdit(body, v) {
     body.querySelector('[data-a="s"]').onclick = async () => {
       const COORD = { tahiti: [-17.535, -149.57], 'taha a': [-16.625, -151.5], tahaa: [-16.625, -151.5], rangiroa: [-14.97, -147.632], tetiaroa: [-17.01, -149.56], fakarava: [-16.06, -145.62], moorea: [-17.53, -149.83], 'bora bora': [-16.5, -151.74], raiatea: [-16.83, -151.43] };
       E.etapes.forEach(e => { const c = COORD[norm(e.lieu)]; if (c) { e.lat = c[0]; e.lon = c[1]; } });
-      E.etapes = E.etapes.filter(e => e.lieu && e.du && e.au); E.vols = E.vols.filter(f => f.date);
       E.nom = (E.nom || '').trim();
-      if (!E.nom) { $('cpVErr').textContent = 'Donnez un nom au voyage.'; return; }
-      if (!E.etapes.length && !E.vols.length) { $('cpVErr').textContent = 'Ajoutez au moins une étape avec ses dates.'; return; }
+      const err = t => { $('cpVErr').textContent = t; $('cpVErr').style.color = 'var(--red)'; toast(t); };
+      if (!E.nom) { err('Donnez un nom au voyage.'); return; }
+      E.etapes.forEach(e => { if (!e.lieu) e.lieu = E.nom; if (e.du && !e.au) e.au = e.du; if (e.au && !e.du) e.du = e.au; });
+      E.etapes = E.etapes.filter(e => e.du && e.au); E.vols = E.vols.filter(f => f.date);
+      if (E.etapes.some(e => e.au < e.du)) { err('Une étape se termine avant de commencer.'); return; }
+      if (!E.etapes.length && !E.vols.length) { err('Indiquez au moins les dates d\u2019une étape.'); return; }
       if (isNew) E.id = 'v-' + norm(E.nom).replace(/ /g, '-').slice(0, 30) + '-' + Date.now().toString(36);
       E.aVerifier = false; vEdit = false; vSel = E.id; lsS('cp-voy', E.id); await saveVoy(E); renderVoy(); };
   };
@@ -757,19 +760,19 @@ function paintDecoBan() {
 setInterval(paintDecoBan, 5 * 60e3);
 
 /* ---------------- abonnements ---------------- */
-BZ.listeners.push(() => { decoCache = null; paintDecoBan(); paintFauneFilter(); if (curView === 'stats') renderStats(); if (curView === 'voyages') renderVoy(); if (!dOv.hidden) paintDive(); });
+BZ.listeners.push(() => { decoCache = null; paintDecoBan(); paintFauneFilter(); if (curView === 'stats') renderStats(); if (curView === 'voyages' && !vEdit) renderVoy(); if (!dOv.hidden) paintDive(); });
 paintFauneFilter(); paintDecoBan();
 (async () => {
   const db = await dbP; if (!db) return;
   if (PUBLIC) { impBtn.hidden = true; return; }
   if (db.role === 'lecteur') impBtn.hidden = true;
-  db.collection('padi').onSnapshot(s => { padi = {}; s.docs.forEach(d => padi[d.id] = d.data()); paintPadiWarn(); if (curView === 'voyages') renderVoy(); }, () => {});
+  db.collection('padi').onSnapshot(s => { padi = {}; s.docs.forEach(d => padi[d.id] = d.data()); paintPadiWarn(); if (curView === 'voyages' && !vEdit) renderVoy(); }, () => {});
   vRef = db.collection('voyages');
   let seeded = false;
   vRef.onSnapshot(s => { voyages = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ((a.etapes || [])[0]?.du || '').localeCompare((b.etapes || [])[0]?.du || ''));
     if (!voyages.length && !seeded && db.role !== 'lecteur' && window.CP && window.CP.carnet) { seeded = true;   // vérifie côté serveur avant de créer le voyage d'exemple
       window.CP.sb.from('docs').select('doc_id').eq('carnet_id', window.CP.carnet).eq('collection', 'voyages').limit(1)
         .then(({ data, error }) => { if (!error && data && !data.length) vRef.doc('polynesie-2027').set(SEED).catch(() => {}); }); }
-    if (curView === 'voyages') renderVoy(); }, () => {});
+    if (curView === 'voyages' && !vEdit) renderVoy(); }, () => {});   // pas de rafraîchissement pendant une saisie
 })();
 })();
