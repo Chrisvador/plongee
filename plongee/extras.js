@@ -60,10 +60,13 @@ document.head.append(el('style', null, `
 .cp-ph{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
 .cp-ph .t{position:relative;aspect-ratio:1;border-radius:9px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}
 .cp-ph img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
-.cp-ph .del{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:16px;line-height:1;cursor:pointer}
 .cp-ph label.add{display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:9px;border:1.5px dashed var(--line);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;text-align:center;padding:6px}
 .cp-light{position:fixed;inset:0;z-index:2600;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:12px}
-.cp-light img{max-width:100%;max-height:100%;object-fit:contain}
+.cp-light{flex-direction:column;gap:12px}
+.cp-light img{max-width:100%;max-height:calc(100% - 64px);object-fit:contain}
+.cp-light-bar{display:flex;gap:10px}
+.cp-light-bar .btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3)}
+.cp-light-bar .btn.danger{background:var(--red);border-color:var(--red);color:#fff}
 .cp-note{font-size:13px;color:var(--muted);margin:0}
 .cp-warn{border-radius:12px;padding:10px 12px;font-size:14px;display:flex;flex-direction:column;gap:3px;border:1px solid}
 .cp-warn.r{background:color-mix(in srgb,var(--red) 10%,transparent);border-color:color-mix(in srgb,var(--red) 40%,transparent)}
@@ -161,7 +164,16 @@ function shrink(file, max = 1800) {
     img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('image')); }; img.src = u; });
 }
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
-function lightbox(src) { const o = el('div', 'cp-light'); o.innerHTML = `<img alt="" src="${esc(src)}">`; o.onclick = () => o.remove(); document.body.append(o); }
+function lightbox(src, onDel) {
+  const o = el('div', 'cp-light'); o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true');
+  o.innerHTML = `<img alt="" src="${esc(src)}"><div class="cp-light-bar"><button type="button" class="btn" data-a="x">Fermer</button>${onDel ? '<button type="button" class="btn danger" data-a="del">Supprimer</button>' : ''}</div>`;
+  const close = () => { o.remove(); document.removeEventListener('keydown', k); }, k = e => { if (e.key === 'Escape') close(); };
+  o.onclick = e => { if (e.target === o || e.target.tagName === 'IMG' || e.target.dataset.a === 'x') close(); };
+  const b = o.querySelector('[data-a="del"]'); if (b) b.onclick = async e => { e.stopPropagation();
+    if (b.dataset.arm !== '1') { b.dataset.arm = '1'; b.textContent = 'Confirmer la suppression'; return; }
+    b.disabled = true; await onDel(); close(); };
+  document.addEventListener('keydown', k); document.body.append(o);
+}
 
 /* ---------------- fiche plongée ---------------- */
 const dOv = el('div', 'overlay'); dOv.id = 'cpDive'; dOv.hidden = true;
@@ -232,13 +244,10 @@ function paintDive() {
 }
 async function paintPhotos(d) {
   const box = $('cpPh'); if (!box) return; const ph = d.photos || [], R = ro();
-  box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="Photo ${i + 1}" data-i="${i}">${R ? '' : `<button class="del" type="button" aria-label="Supprimer la photo ${i + 1}" data-del="${i}">×</button>`}</div>`).join('') +
+  box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="Photo ${i + 1}" data-i="${i}"></div>`).join('') +
     (R ? '' : '<label class="add">+ Ajouter des photos<input type="file" accept="image/*" multiple hidden id="cpPhIn"></label>');
   if (!ph.length && R) box.innerHTML = '<span class="cp-note">Aucune photo.</span>';
-  if (ph.length) { const urls = await signed(ph); box.querySelectorAll('img[data-i]').forEach(im => { const u = urls[+im.dataset.i]; if (u) { im.src = u; im.onclick = () => lightbox(u); } }); }
-  box.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const i = +b.dataset.del, p = ph[i];
-    if (b.dataset.arm !== '1') { b.dataset.arm = '1'; b.textContent = '?'; b.style.background = 'var(--red)'; return; }
-    try { await store().remove([p]); } catch {} await patchDive(d.id, { photos: ph.filter((_, k) => k !== i) }); paintDive(); });
+  if (ph.length) { const urls = await signed(ph); box.querySelectorAll('img[data-i]').forEach(im => { const u = urls[+im.dataset.i]; if (u) { im.src = u; const i = +im.dataset.i; im.onclick = () => lightbox(u, R ? null : async () => { try { await store().remove([ph[i]]); } catch {} await patchDive(d.id, { photos: (getDive(d.id).photos || []).filter(x => x !== ph[i]) }); paintDive(); }); } }); }
   const inp = $('cpPhIn'); if (inp) inp.onchange = async () => {
     const files = [...inp.files].slice(0, 12), msg = $('cpPhMsg'); if (!files.length || !store()) return;
     const carnet = window.CP.carnet, add = [];
@@ -587,13 +596,10 @@ function renderVoy() {
 }
 async function paintVoyPhotos(v) {
   const box = $('cpVPh'); if (!box) return; const ph = v.photos || [], R = ro();
-  box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="Photo ${i + 1} du voyage" data-i="${i}">${R ? '' : `<button class="del" type="button" aria-label="Supprimer la photo ${i + 1}" data-del="${i}">×</button>`}</div>`).join('') +
+  box.innerHTML = ph.map((p, i) => `<div class="t"><img alt="Photo ${i + 1} du voyage" data-i="${i}"></div>`).join('') +
     (R ? '' : '<label class="add">+ Ajouter des photos<input type="file" accept="image/*" multiple hidden id="cpVPhIn"></label>');
   if (!ph.length && R) box.innerHTML = '<span class="cp-note">Aucune photo.</span>';
-  if (ph.length) { const urls = await signed(ph); box.querySelectorAll('img[data-i]').forEach(im => { const u = urls[+im.dataset.i]; if (u) { im.src = u; im.onclick = () => lightbox(u); } }); }
-  box.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const i = +b.dataset.del, p = ph[i];
-    if (b.dataset.arm !== '1') { b.dataset.arm = '1'; b.textContent = '?'; b.style.background = 'var(--red)'; return; }
-    try { await store().remove([p]); } catch {} await saveVoy({ ...v, photos: ph.filter((_, k) => k !== i) }); });
+  if (ph.length) { const urls = await signed(ph); box.querySelectorAll('img[data-i]').forEach(im => { const u = urls[+im.dataset.i]; if (u) { im.src = u; const i = +im.dataset.i; im.onclick = () => lightbox(u, R ? null : async () => { try { await store().remove([ph[i]]); } catch {} const cur = voyages.find(x => x.id === v.id) || v; await saveVoy({ ...cur, photos: (cur.photos || []).filter(x => x !== ph[i]) }); }); } }); }
   const inp = $('cpVPhIn'); if (inp) inp.onchange = async () => {
     const files = [...inp.files].slice(0, 30), msg = $('cpVPhMsg'); if (!files.length || !store()) return;
     const add = [];
